@@ -1,7 +1,7 @@
-#CareerConnect
+# CareerConnect
 CareerConnect is a web-based platform designed to streamline and centralize the job search and recruitment process. It provides job seekers with tools to manage their profiles, track applications, and receive intelligent insights, while enabling recruiters to post job opportunities and manage talent pipelines effectively.
 
-##Key Features
+## Key Features
 For Job Seekers
 Profile & Resume Management: Create professional profiles, upload multiple resumes, and manage application documents.
 
