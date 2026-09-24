@@ -16,12 +16,14 @@ CareerConnect will bring job searching, resume management, and application track
 
 ## Team Members
 
-- Lounis Benhamouche
-- Aymane Mekkaoui
-- Ahmed Meziani
-- Michael Theodore
-- Jack Wu
-- Qing Che Yu
+| Name | Student ID |
+| --- | --- |
+| Lounis Benhamouche | 40319314 |
+| Aymane Mekkaoui | 40287951 |
+| Ahmed Meziani | 40329506 |
+| Michael Theodore | 40282178 |
+| Jack Wu | 40157717 |
+| Qing Che Yu | 40328033 |
 
 ## Technologies
 
