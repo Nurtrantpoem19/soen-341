@@ -16,7 +16,12 @@ CareerConnect will bring job searching, resume management, and application track
 
 ## Team Members
 
-To be confirmed.
+- Lounis Benhamouche
+- Aymane Mekkaoui
+- Ahmed Meziani
+- Michael Theodore
+- Jack Wu
+- Qing Che Yu
 
 ## Technologies
 
