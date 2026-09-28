@@ -27,11 +27,11 @@ CareerConnect will bring job searching, resume management, and application track
 
 ## Technologies
 
-- Version control and hosting: Git and GitHub.
-- Frontend: To be confirmed.
-- Backend: To be confirmed.
-- Database: To be confirmed.
-- Generative AI integration: To be confirmed.
+- Version control and hosting: Git and GitHub. (TBH)
+- Frontend: Ahmed and Che
+- Backend: Jack and Michael
+- Database: Aymane and Lounis
+- Generative AI integration: Everyone
 
 ## Setup Instructions
 
