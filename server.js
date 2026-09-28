@@ -1,7 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 const app = express();
 const PORT = 3000;
+app.use(cors());
 
 // middleware to parse  JSON requests
 app.use(express.json());

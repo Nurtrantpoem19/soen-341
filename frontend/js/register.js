@@ -6,7 +6,7 @@ const confirmPasswordInput = document.getElementById("confirm-password");
 const errorMessage = document.getElementById("error-message");
 const registerButton = document.getElementById("register-button");
 
-registerForm.addEventListener("submit", function (event) {
+registerForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
     const name = nameInput.value.trim();
@@ -16,7 +16,6 @@ registerForm.addEventListener("submit", function (event) {
 
     errorMessage.textContent = "";
 
-    // Check for empty fields
     if (
         name === "" ||
         email === "" ||
@@ -27,26 +26,54 @@ registerForm.addEventListener("submit", function (event) {
         return;
     }
 
-    // Check email format
     if (!emailInput.checkValidity()) {
         errorMessage.textContent = "Please enter a valid email address.";
         return;
     }
 
-    // Check password length
     if (password.length < 6) {
         errorMessage.textContent =
             "Password must be at least 6 characters.";
         return;
     }
 
-    // Check if passwords match
     if (password !== confirmPassword) {
         errorMessage.textContent = "Passwords do not match.";
         return;
     }
 
-    // Show loading state
     registerButton.textContent = "Creating Account...";
     registerButton.disabled = true;
+
+    try {
+        const response = await fetch(
+            "http://localhost:3000/api/auth/register",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            errorMessage.textContent =
+                data.message || "Registration failed.";
+            return;
+        }
+
+        window.location.href = "login.html";
+    } catch (error) {
+        errorMessage.textContent =
+            "Unable to connect to the server. Please try again.";
+    } finally {
+        registerButton.textContent = "Create Account";
+        registerButton.disabled = false;
+    }
 });
