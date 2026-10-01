@@ -28,9 +28,10 @@ CareerConnect will bring job searching, resume management, and application track
 ## Technologies
 
 - Version control and hosting: Git and GitHub.
-- Frontend: To be confirmed.
-- Backend: To be confirmed.
-- Database: To be confirmed.
+- Frontend: HTML, CSS and JavaScript registration/login pages; registration connects to the API, while login integration is still pending.
+- Backend: Node.js 22+, Express, bcrypt.
+- Database: PostgreSQL 17, node-postgres, versioned SQL migrations.
+- Testing: Node.js test runner; PostgreSQL in CI and pg-mem for local checks.
 - Generative AI integration: To be confirmed.
 
 ## Setup Instructions
@@ -42,7 +43,23 @@ git clone https://github.com/Nurtrantpoem19/soen-341.git
 cd soen-341
 ```
 
-Application installation and run instructions are to be confirmed once the technology stack and implementation are available.
+Install Node.js 22+ and Docker with Compose, then run:
+
+```bash
+npm ci
+```
+
+Copy `.env.example` to `.env` (`Copy-Item .env.example .env` in PowerShell, or `cp .env.example .env` on macOS/Linux), then run:
+
+```bash
+docker compose up -d --wait db
+npm run db:migrate
+npm start
+```
+
+Check `http://localhost:3000/api/health`. Run `npm test` for local emulator checks. CI runs the same suite against PostgreSQL; to do so locally, set `TEST_DATABASE_URL` to a separate test database before running tests.
+
+PostgreSQL data persists in a Docker volume. Profile endpoints currently use the local-only `DEMO_AUTH=true` mode and `x-demo-user-id` header, not real login authentication. Never expose this demo mode publicly. See [database setup and schema](docs/database.md) for details and a demo walkthrough.
 
 ## Proposed Features
 
