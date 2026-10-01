@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 const { createPool } = require('./db');
 const fields = { firstName: 100, lastName: 100, phone: 50, location: 200, headline: 200 };
 const columns = 'user_id AS "userId", first_name AS "firstName", last_name AS "lastName", phone, location, headline, summary';
@@ -14,6 +15,7 @@ function validateProfile(body) {
 }
 function createApp(pool, { demoAuth = false } = {}) {
   const app = express();
+  app.use('/api/auth/register', cors());
   app.use(express.json({ limit: '32kb' }));
   app.get('/api/health', async (req, res) => {
     try { await pool.query('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); }

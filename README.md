@@ -28,7 +28,7 @@ CareerConnect will bring job searching, resume management, and application track
 ## Technologies
 
 - Version control and hosting: Git and GitHub.
-- Frontend: Login/registration UI under development on a separate branch.
+- Frontend: HTML, CSS and JavaScript registration/login pages; registration connects to the API, while login integration is still pending.
 - Backend: Node.js 22+, Express, bcrypt.
 - Database: PostgreSQL 17, node-postgres, versioned SQL migrations.
 - Testing: Node.js test runner; PostgreSQL in CI and pg-mem for local checks.

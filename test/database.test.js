@@ -35,12 +35,20 @@ test('database migrations, constraints and API persistence', async t => {
   }
   const stop = () => new Promise(resolve => server.close(resolve));
   let base = await start();
+  const preflight = await fetch(base + '/api/auth/register', {
+    method: 'OPTIONS',
+    headers: { Origin: 'http://localhost:5500', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' }
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
   async function request(path, method = 'GET', body, id) {
     const response = await fetch(base + path, { method, headers: { 'content-type': 'application/json', ...(id ? { 'x-demo-user-id': String(id) } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: await response.json() };
   }
   assert.equal((await request('/api/health')).status, 200);
   assert.equal((await request('/api/auth/register', 'POST', { email: 'invalid', password: 'short' })).status, 400);
+  assert.equal((await request('/api/auth/register', 'POST', { email, password: '1234567' })).status, 400);
+  assert.equal((await request('/api/auth/register', 'POST', { email, password: 'x'.repeat(73) })).status, 400);
   const registration = await request('/api/auth/register', 'POST', { email, password: 'ExamplePass123!' });
   assert.equal(registration.status, 201);
   const id = registration.body.user.id;
