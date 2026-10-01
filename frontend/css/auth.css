@@ -1,0 +1,187 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+
+    background: linear-gradient(
+        160deg,
+        #4b0d1f 0%,
+        #7a1f3d 45%,
+        #b76e79 100%
+    );
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+main {
+    width: 90%;
+    max-width: 620px;
+    color: white;
+    padding: 50px 40px;
+    border-top: 1px solid rgba(255, 255, 255, 0.65);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+main h1 {
+    text-align: center;
+    font-size: 48px;
+    font-weight: 300;
+    letter-spacing: 8px;
+    margin-bottom: 15px;
+}
+
+main h2 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 7px;
+    text-transform: uppercase;
+    margin-bottom: 55px;
+}
+form > div {
+    margin-bottom: 28px;
+}
+
+form label {
+    display: block;
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+form input {
+    width: 100%;
+    padding: 12px 5px;
+
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+
+    color: white;
+    font-size: 16px;
+
+    outline: none;
+}
+
+form input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+form input:focus {
+    border-bottom: 2px solid white;
+}
+.login-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: -5px;
+    margin-bottom: 30px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.remember-me input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #5c1028;
+    cursor: pointer;
+}
+
+.forgot-password {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    font-style: italic;
+    text-decoration: none;
+}
+
+.forgot-password:hover {
+    color: white;
+    text-decoration: underline;
+}
+form button {
+    width: 100%;
+    padding: 16px;
+    margin-top: 5px;
+
+    background: #4b0d1f;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+form button:hover {
+    background: #350815;
+    transform: translateY(-1px);
+}
+main > p {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+main > p a {
+    color: white;
+    font-weight: bold;
+    text-decoration: none;
+    margin-left: 5px;
+}
+
+main > p a:hover {
+    text-decoration: underline;
+}
+form {
+    width: 100%;
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+#error-message {
+    min-height: 20px;
+    margin-bottom: 10px;
+    color: #ffd7df;
+    font-size: 13px;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    main {
+        width: 92%;
+        padding: 40px 20px;
+    }
+
+    main h1 {
+        font-size: 32px;
+        letter-spacing: 5px;
+    }
+
+    main h2 {
+        font-size: 16px;
+        letter-spacing: 5px;
+        margin-bottom: 40px;
+    }
+}
