@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>My Profile | CareerConnect</title>
+
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/profile.css">
+</head>
+
+<body>
+
+    <main>
+        <h1>CareerConnect</h1>
+        <h2>My Profile</h2>
+
+        <section class="profile-summary" aria-live="polite">
+            <div class="profile-avatar" id="profile-initials">?</div>
+            <div>
+                <p class="profile-name" id="summary-name">Your Name</p>
+                <p class="profile-headline" id="summary-headline">Add a headline to stand out to recruiters</p>
+                <p class="profile-location" id="summary-location"></p>
+            </div>
+        </section>
+
+        <form id="profile-form" novalidate>
+
+            <div class="form-row">
+                <div>
+                    <label for="first-name">First Name</label>
+                    <input
+                        type="text"
+                        id="first-name"
+                        name="firstName"
+                        placeholder="Enter your first name"
+                        maxlength="100"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="last-name">Last Name</label>
+                    <input
+                        type="text"
+                        id="last-name"
+                        name="lastName"
+                        placeholder="Enter your last name"
+                        maxlength="100"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div>
+                <label for="headline">Headline</label>
+                <input
+                    type="text"
+                    id="headline"
+                    name="headline"
+                    placeholder="e.g. Junior Software Developer"
+                    maxlength="200"
+                    required
+                >
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label for="phone">Phone</label>
+                    <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        placeholder="Enter your phone number"
+                        maxlength="50"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="location">Location</label>
+                    <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        placeholder="e.g. Montreal, QC"
+                        maxlength="200"
+                        required
+                    >
+                </div>
+            </div>
+
+            <p id="error-message"></p>
+
+            <button type="submit" id="profile-button">
+                Save Profile
+            </button>
+
+        </form>
+
+        <p>
+            Looking for opportunities?
+            <a href="#">Browse Jobs</a>
+        </p>
+
+    </main>
+<script src="js/profile.js"></script>
+
+</body>
+</html>
