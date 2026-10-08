@@ -1,0 +1,94 @@
+body {
+    padding: 40px 0;
+}
+
+main {
+    max-width: 720px;
+}
+
+main h2 {
+    margin-bottom: 40px;
+}
+
+.profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    max-width: 540px;
+    margin: 0 auto 45px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.profile-avatar {
+    flex-shrink: 0;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: #4b0d1f;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.profile-name {
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+}
+
+.profile-headline {
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 4px;
+}
+
+.profile-location {
+    font-size: 13px;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+form > .form-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 0;
+}
+
+.form-row > div {
+    flex: 1;
+    margin-bottom: 28px;
+}
+
+#error-message.success {
+    color: #e6ffe9;
+}
+
+form button:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .profile-summary {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+    }
+}
