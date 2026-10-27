@@ -41,7 +41,7 @@ Assigned Members
 
 User Profile & Resume Management
 
-Lounis Benhamouche and Ahmed Yacine Meziani
+Lounis Benhamouche and Ahmed Yacine Meziani and Michael Theodore
 
 Job Search & Listing Interface
 
