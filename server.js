@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
 const fields = { firstName: 100, lastName: 100, phone: 50, location: 200, headline: 200 };
@@ -35,6 +36,109 @@ function createApp(pool, { demoAuth = false } = {}) {
       next(error);
     }
   });
+  // User login
+app.post('/api/auth/login', async (req, res, next) => {
+  const { email, password } = req.body || {};
+
+  if (typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      !email.trim() ||
+      !password) {
+    return res.status(400).json({
+      message: 'Email and password are required.'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id, email, password_hash FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({
+        message: 'Invalid email or password.'
+      });
+    }
+
+    const user = result.rows[0];
+
+    const validPassword = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+    if (!validPassword) {
+      return res.status(401).json({
+        message: 'Invalid email or password.'
+      });
+    }
+
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      return res.status(503).json({
+        message: 'Authentication is not configured.'
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id },
+      secret,
+      { expiresIn: '1h', algorithm: 'HS256' }
+    );
+
+    return res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+// Verify the logged-in user using a JWT token
+function authenticateUser(req, res, next) {
+  const authorization = req.get('Authorization');
+
+  if (!authorization || !authorization.startsWith('Bearer ')) {
+    return res.status(401).json({
+      message: 'Authentication required.'
+    });
+  }
+
+  const token = authorization.slice(7);
+
+  if (!process.env.JWT_SECRET) {
+    return res.status(503).json({
+      message: 'Authentication is not configured.'
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256']
+    });
+
+    if (!Number.isSafeInteger(decoded.userId) || decoded.userId < 1) {
+      return res.status(401).json({
+        message: 'Invalid authentication token.'
+      });
+    }
+
+    req.user = { id: decoded.userId };
+    next();
+
+  } catch (error) {
+    return res.status(401).json({
+      message: 'Invalid or expired authentication token.'
+    });
+  }
+}
   // Temporary compatibility with the existing local demo. Real authentication is a separate task.
   async function demoUser(req, res, next) {
     if (!demoAuth) return res.status(401).json({ message: 'Profile authentication is not configured.' });
@@ -46,7 +150,7 @@ function createApp(pool, { demoAuth = false } = {}) {
       req.user = result.rows[0]; next();
     } catch (error) { next(error); }
   }
-  app.post('/api/profile', demoUser, async (req, res, next) => {
+  app.post('/api/profile', authenticateUser, async (req, res, next) => {
     const values = validateProfile(req.body);
     if (!values) return res.status(400).json({ message: 'All profile fields are required and must respect length limits.' });
     try {
@@ -57,14 +161,14 @@ function createApp(pool, { demoAuth = false } = {}) {
       next(error);
     }
   });
-  app.get('/api/profile/me', demoUser, async (req, res, next) => {
+  app.get('/api/profile/me', authenticateUser, async (req, res, next) => {
     try {
       const result = await pool.query(`SELECT ${columns} FROM profiles WHERE user_id=$1`, [req.user.id]);
       if (!result.rowCount) return res.status(404).json({ message: 'Profile not found.' });
       res.json({ profile: result.rows[0] });
     } catch (error) { next(error); }
   });
-  app.put('/api/profile/me', demoUser, async (req, res, next) => {
+  app.put('/api/profile/me', authenticateUser, async (req, res, next) => {
     const values = validateProfile(req.body);
     if (!values) return res.status(400).json({ message: 'All profile fields are required and must respect length limits.' });
     try {
@@ -76,6 +180,7 @@ function createApp(pool, { demoAuth = false } = {}) {
   app.use((error, req, res, next) => {
     if (error.type === 'entity.parse.failed') return res.status(400).json({ message: 'Invalid JSON.' });
     if (error.type === 'entity.too.large') return res.status(413).json({ message: 'Request too large.' });
+    console.error('Backend error:', error);
     res.status(500).json({ message: 'Internal server error' });
   });
   return app;
