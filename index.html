@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="description"
+        content="CareerConnect brings your career tools together in one place."
+    >
+    <title>CareerConnect | Your career, connected</title>
+    <link rel="stylesheet" href="frontend/css/home.css">
+</head>
+
+<body>
+    <aside class="sidebar" id="career-sidebar" aria-label="CareerConnect navigation">
+        <div class="sidebar-brand">
+            <a class="brand" href="index.html" aria-label="CareerConnect home">
+                <span class="brand-mark" aria-hidden="true">C</span>
+                <span class="sidebar-brand-name">CareerConnect</span>
+            </a>
+            <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Close navigation">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18"></path>
+                </svg>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Main navigation">
+            <p class="sidebar-section-label">Workspace</p>
+            <a class="sidebar-link is-active" href="index.html" aria-current="page" title="Home">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"></path>
+                </svg>
+                <span class="sidebar-link-label">Home</span>
+            </a>
+            <a class="sidebar-link" href="frontend/login.html" title="Login">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10 17l5-5-5-5M15 12H3"></path>
+                    <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"></path>
+                </svg>
+                <span class="sidebar-link-label">Login</span>
+            </a>
+            <a class="sidebar-link" href="frontend/register.html" title="Register">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9.5" cy="7" r="4"></circle>
+                    <path d="M19 8v6M16 11h6"></path>
+                </svg>
+                <span class="sidebar-link-label">Register</span>
+            </a>
+            <a class="sidebar-link" href="frontend/profile.html" title="My Profile">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4"></circle>
+                    <path d="M4 21a8 8 0 0 1 16 0"></path>
+                </svg>
+                <span class="sidebar-link-label">My Profile</span>
+            </a>
+            <a class="sidebar-link" href="frontend/resume.html" title="My Resume">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <path d="M14 2v6h6M8 13h8M8 17h8"></path>
+                </svg>
+                <span class="sidebar-link-label">My Resume</span>
+            </a>
+            <div class="sidebar-link sidebar-link-coming" title="Job Search — Coming soon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-4-4M11 8v6M8 11h6"></path>
+                </svg>
+                <span class="sidebar-link-label">Job Search</span>
+                <span class="coming-soon">Soon</span>
+            </div>
+            <div class="sidebar-link sidebar-link-coming" title="My Applications — Coming soon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 6h13M8 12h13M8 18h13"></path>
+                    <path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"></path>
+                </svg>
+                <span class="sidebar-link-label">My Applications</span>
+                <span class="coming-soon">Soon</span>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="sidebar-footer-mark" aria-hidden="true">CC</span>
+            <span class="sidebar-footer-text">Your career, connected</span>
+        </div>
+    </aside>
+
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" tabindex="-1" aria-label="Close navigation" hidden></button>
+
+    <div class="app-shell" id="app-shell">
+        <header class="site-header">
+            <button
+                class="sidebar-toggle"
+                id="sidebar-toggle"
+                type="button"
+                aria-label="Collapse navigation"
+                aria-expanded="true"
+                aria-controls="career-sidebar"
+            >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            <a class="brand header-brand" href="index.html" aria-label="CareerConnect home">
+                <span class="brand-mark" aria-hidden="true">C</span>
+                <span>CareerConnect</span>
+            </a>
+            <nav class="main-nav" aria-label="Account navigation">
+                <a href="frontend/login.html">Login</a>
+                <a class="nav-cta" href="frontend/register.html">Create account</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="hero" aria-labelledby="hero-title">
+                <div class="hero-content">
+                    <p class="eyebrow">A clearer path to your next opportunity</p>
+                    <h1 id="hero-title">Your career journey, <span>connected.</span></h1>
+                    <p class="hero-description">
+                        CareerConnect is being built to bring your career profile, resume,
+                        and job search into one place.
+                    </p>
+                    <div class="hero-actions">
+                        <a class="button button-light" href="frontend/register.html">Create an account</a>
+                        <a class="button button-outline" href="frontend/login.html">Log in</a>
+                    </div>
+                    <p class="hero-note">
+                        Some features are still in development and may require backend support.
+                    </p>
+                </div>
+                <div class="hero-art" aria-hidden="true">
+                    <div class="orbit orbit-one"></div>
+                    <div class="orbit orbit-two"></div>
+                    <div class="career-card">
+                        <span class="card-dot"></span>
+                        <span class="card-line card-line-long"></span>
+                        <span class="card-line card-line-short"></span>
+                        <span class="card-rule"></span>
+                        <span class="card-line card-line-medium"></span>
+                        <span class="card-line card-line-long"></span>
+                        <span class="card-line card-line-short"></span>
+                    </div>
+                    <span class="spark spark-one">✦</span>
+                    <span class="spark spark-two">✦</span>
+                </div>
+            </section>
+
+            <section class="destinations" aria-labelledby="destinations-title">
+                <div class="section-intro">
+                    <p class="eyebrow">Explore CareerConnect</p>
+                    <h2 id="destinations-title">Go to a page</h2>
+                    <p>These links open existing pages in the project.</p>
+                </div>
+
+                <div class="destination-grid">
+                    <a class="destination-card" href="frontend/login.html">
+                        <span class="destination-number">01</span>
+                        <span class="destination-title">Login</span>
+                        <span class="destination-description">
+                            Open the login page. Authentication integration is still in progress.
+                        </span>
+                        <span class="destination-link">Go to login <span aria-hidden="true">→</span></span>
+                    </a>
+
+                    <a class="destination-card" href="frontend/register.html">
+                        <span class="destination-number">02</span>
+                        <span class="destination-title">Registration</span>
+                        <span class="destination-description">
+                            Open the existing account registration page.
+                        </span>
+                        <span class="destination-link">Create an account <span aria-hidden="true">→</span></span>
+                    </a>
+
+                    <a class="destination-card" href="frontend/profile.html">
+                        <span class="destination-number">03</span>
+                        <span class="destination-title">Profile</span>
+                        <span class="destination-description">
+                            Open your profile page. It currently uses the project's demo-user setup.
+                        </span>
+                        <span class="destination-link">View profile <span aria-hidden="true">→</span></span>
+                    </a>
+
+                    <a class="destination-card" href="frontend/resume.html">
+                        <span class="destination-number">04</span>
+                        <span class="destination-title">Resume management</span>
+                        <span class="destination-description">
+                            Open the resume page. Upload and saved-resume actions await backend support.
+                        </span>
+                        <span class="destination-link">Manage resume <span aria-hidden="true">→</span></span>
+                    </a>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <a class="brand footer-brand" href="index.html">
+                <span class="brand-mark" aria-hidden="true">C</span>
+                <span>CareerConnect</span>
+            </a>
+            <p>SOEN 341 · Fall 2026</p>
+        </footer>
+    </div>
+    <script src="frontend/js/home.js"></script>
+</body>
+</html>

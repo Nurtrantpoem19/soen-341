@@ -154,6 +154,37 @@ main > p a {
 main > p a:hover {
     text-decoration: underline;
 }
+
+.home-navigation {
+    position: fixed;
+    z-index: 10;
+    top: 24px;
+    left: 24px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13px;
+    letter-spacing: 0;
+    text-align: left;
+}
+
+.home-navigation a {
+    display: inline-block;
+    margin: 0;
+    padding: 8px 10px;
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.home-navigation a:hover,
+.home-navigation a:focus-visible {
+    color: #fff;
+    background: rgba(75, 13, 31, 0.45);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 form {
     width: 100%;
     max-width: 540px;
@@ -169,6 +200,11 @@ form {
 }
 
 @media (max-width: 600px) {
+    .home-navigation {
+        top: 16px;
+        left: 16px;
+    }
+
     main {
         width: 92%;
         padding: 40px 20px;
