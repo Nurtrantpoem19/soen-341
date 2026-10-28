@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Manage your CareerConnect resume.">
+    <title>Resume Management | CareerConnect</title>
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/resume.css">
+</head>
+
+<body>
+    <main class="resume-page">
+        <nav class="page-navigation" aria-label="Page navigation">
+            <a href="profile.html">Back to profile</a>
+        </nav>
+
+        <header class="page-heading">
+            <p class="eyebrow">CareerConnect</p>
+            <h1>Resume management</h1>
+            <p class="page-intro">Keep your resume ready for your next opportunity.</p>
+        </header>
+
+        <section class="resume-card" aria-labelledby="upload-heading">
+            <div class="section-heading">
+                <span class="section-icon" aria-hidden="true">01</span>
+                <div>
+                    <h2 id="upload-heading">Upload your resume</h2>
+                    <p>Choose a PDF file up to 5 MB.</p>
+                </div>
+            </div>
+
+            <form id="resume-form" novalidate>
+                <input
+                    class="visually-hidden"
+                    type="file"
+                    id="resume-file"
+                    name="resume"
+                    accept=".pdf,application/pdf"
+                    aria-describedby="file-guidance file-details upload-status"
+                >
+                <label class="file-picker" for="resume-file">
+                    <span class="upload-icon" aria-hidden="true">↑</span>
+                    <span class="file-picker-title">Choose a PDF from your device</span>
+                    <span class="file-picker-hint">PDF only · Maximum size 5 MB</span>
+                </label>
+
+                <p id="file-guidance" class="file-guidance">
+                    For your privacy, the selected file stays on this page until you submit it.
+                </p>
+                <div id="file-details" class="file-details" hidden>
+                    <span class="file-symbol" aria-hidden="true">PDF</span>
+                    <span class="file-copy">
+                        <span id="file-name" class="file-name"></span>
+                        <span id="file-size" class="file-size"></span>
+                    </span>
+                    <button class="remove-file" id="remove-file" type="button" aria-label="Remove selected file">
+                        Remove
+                    </button>
+                </div>
+
+                <p id="upload-status" class="status-message" role="status" aria-live="polite"></p>
+
+                <button class="primary-button" id="upload-button" type="submit" disabled>
+                    Upload resume
+                </button>
+            </form>
+        </section>
+
+        <section class="resume-card current-resume" aria-labelledby="current-resume-heading">
+            <div class="section-heading">
+                <span class="section-icon" aria-hidden="true">02</span>
+                <div>
+                    <h2 id="current-resume-heading">Your current resume</h2>
+                    <p>View, download, replace, or remove your saved resume.</p>
+                </div>
+            </div>
+            <div class="unavailable-panel">
+                <p class="availability-label">Backend connection required</p>
+                <p>
+                    Resume storage and management are not connected yet. Once the backend is
+                    available, your saved resume and its management actions will appear here.
+                </p>
+            </div>
+        </section>
+
+        <p class="privacy-note">
+            Your resume is not saved by this page. Upload and management will be enabled when
+            secure backend support is available.
+        </p>
+    </main>
+
+    <script src="js/resume.js"></script>
+</body>
+</html>
