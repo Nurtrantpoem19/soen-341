@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Search and filter job opportunities on CareerConnect.">
+    <title>Job Search | CareerConnect</title>
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/jobs.css">
+</head>
+
+<body>
+    <main class="jobs-page">
+        <p class="home-navigation"><a href="../index.html">← Back to Home</a></p>
+
+        <header class="page-heading">
+            <p class="eyebrow">CareerConnect</p>
+            <h1>Job search</h1>
+            <p class="page-intro">Find opportunities by keyword, location, or category.</p>
+        </header>
+
+        <form id="search-form" class="search-form" role="search" novalidate>
+            <div>
+                <label for="keyword">Keyword</label>
+                <input
+                    type="search"
+                    id="keyword"
+                    name="q"
+                    placeholder="Job title, company, or skill"
+                    maxlength="100"
+                >
+            </div>
+
+            <div class="filter-row">
+                <div>
+                    <label for="location">Location</label>
+                    <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        placeholder="e.g. Montreal or Remote"
+                        maxlength="100"
+                    >
+                </div>
+
+                <div>
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="">All categories</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="type">Job type</label>
+                    <select id="type" name="type">
+                        <option value="">All types</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-actions">
+                <button type="submit" id="search-button">Search jobs</button>
+                <button type="button" class="clear-filters" id="clear-filters">Clear filters</button>
+            </div>
+        </form>
+
+        <section class="results" aria-labelledby="results-heading">
+            <div class="results-header">
+                <h2 id="results-heading">Available jobs</h2>
+                <p id="results-count" class="results-count" role="status" aria-live="polite"></p>
+            </div>
+
+            <p id="search-status" class="search-status" hidden></p>
+            <ul id="job-list" class="job-list"></ul>
+        </section>
+    </main>
+
+    <script src="js/jobs.js"></script>
+</body>
+</html>

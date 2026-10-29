@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="View a job opportunity on CareerConnect.">
+    <title>Job Details | CareerConnect</title>
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/jobs.css">
+</head>
+
+<body>
+    <main class="jobs-page job-details-page">
+        <p class="home-navigation"><a href="../index.html">← Back to Home</a></p>
+        <nav class="page-navigation" aria-label="Page navigation">
+            <a id="back-to-search" href="jobs.html">Back to job search</a>
+        </nav>
+
+        <p id="details-status" class="search-status" role="status" aria-live="polite">Loading job details...</p>
+
+        <article id="job-details" hidden>
+            <header class="page-heading">
+                <p class="eyebrow" id="job-category"></p>
+                <h1 id="job-title"></h1>
+                <p class="page-intro" id="job-company"></p>
+            </header>
+
+            <section class="detail-card" aria-label="Job summary">
+                <dl class="job-facts">
+                    <div>
+                        <dt>Job type</dt>
+                        <dd id="job-type"></dd>
+                    </div>
+                    <div>
+                        <dt>Location</dt>
+                        <dd id="job-location"></dd>
+                    </div>
+                    <div>
+                        <dt>Salary</dt>
+                        <dd id="job-salary"></dd>
+                    </div>
+                    <div>
+                        <dt>Posted</dt>
+                        <dd id="job-posted"></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="detail-card" aria-labelledby="description-heading">
+                <div class="section-heading">
+                    <span class="section-icon" aria-hidden="true">01</span>
+                    <h2 id="description-heading">About the role</h2>
+                </div>
+                <p class="job-full-description" id="job-description"></p>
+            </section>
+
+            <section class="detail-card" id="requirements-section" aria-labelledby="requirements-heading">
+                <div class="section-heading">
+                    <span class="section-icon" aria-hidden="true">02</span>
+                    <h2 id="requirements-heading">Requirements</h2>
+                </div>
+                <ul class="requirements-list" id="job-requirements"></ul>
+            </section>
+
+            <section class="detail-card apply-card" aria-labelledby="apply-heading">
+                <div class="section-heading">
+                    <span class="section-icon" aria-hidden="true">03</span>
+                    <div>
+                        <h2 id="apply-heading">Interested in this role?</h2>
+                        <p>Make sure your <a href="profile.html">profile</a> and <a href="resume.html">resume</a> are up to date before applying.</p>
+                    </div>
+                </div>
+                <p id="apply-status" class="apply-status" role="status" aria-live="polite"></p>
+                <button class="primary-button" id="apply-button" type="button">Apply for this job</button>
+            </section>
+        </article>
+    </main>
+
+    <script src="js/job-details.js"></script>
+</body>
+</html>

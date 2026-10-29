@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
+const { registerJobRoutes } = require('./routes/jobs');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -135,6 +136,7 @@ function validateApplication(body) {
 function createApp(pool, { demoAuth = false } = {}) {
   const app = express();
   app.use('/api/auth/register', cors());
+  app.use('/api/jobs', cors());
   app.use(express.json({ limit: '32kb' }));
 
   app.get('/api/health', async (req, res) => {
@@ -472,6 +474,8 @@ function createApp(pool, { demoAuth = false } = {}) {
       res.json({ profile: result.rows[0] });
     } catch (error) { next(error); }
   });
+
+  registerJobRoutes(app, pool);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
