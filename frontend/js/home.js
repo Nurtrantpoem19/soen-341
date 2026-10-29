@@ -4,6 +4,48 @@ const toggleButton = document.getElementById("sidebar-toggle");
 const closeButton = document.getElementById("sidebar-close");
 const backdrop = document.getElementById("sidebar-backdrop");
 const mobileLayout = window.matchMedia("(max-width: 700px)");
+const TOKEN_KEY = "careerconnect_token";
+
+function isExpiredTokenHint(token) {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+        return true;
+    }
+
+    try {
+        const encodedPayload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const paddedPayload = encodedPayload.padEnd(
+            encodedPayload.length + ((4 - (encodedPayload.length % 4)) % 4),
+            "="
+        );
+        const payload = JSON.parse(atob(paddedPayload));
+        return !Number.isFinite(payload.exp) || Date.now() >= payload.exp * 1000;
+    } catch (error) {
+        return true;
+    }
+}
+
+function syncAuthenticationNavigation() {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    const authenticated = Boolean(token) && !isExpiredTokenHint(token);
+
+    if (token && !authenticated) {
+        sessionStorage.removeItem(TOKEN_KEY);
+    }
+
+    document.querySelectorAll("[data-auth-state]").forEach(function (element) {
+        element.hidden = element.dataset.authState === "authenticated"
+            ? !authenticated
+            : authenticated;
+    });
+}
+
+document.querySelectorAll("[data-logout]").forEach(function (button) {
+    button.addEventListener("click", function () {
+        sessionStorage.removeItem(TOKEN_KEY);
+        window.location.reload();
+    });
+});
 
 function isMobileLayout() {
     return mobileLayout.matches;
@@ -66,7 +108,7 @@ backdrop.addEventListener("click", function () {
 });
 
 sidebar.addEventListener("click", function (event) {
-    if (isMobileLayout() && event.target.closest("a.sidebar-link")) {
+    if (isMobileLayout() && event.target.closest("a.sidebar-link, button.sidebar-link")) {
         setMobileOpen(false);
     }
 });
@@ -99,4 +141,7 @@ document.addEventListener("keydown", function (event) {
 });
 
 mobileLayout.addEventListener("change", syncLayout);
+window.addEventListener("pageshow", syncAuthenticationNavigation);
+window.addEventListener("storage", syncAuthenticationNavigation);
+syncAuthenticationNavigation();
 syncLayout();
