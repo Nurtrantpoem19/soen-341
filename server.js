@@ -1,8 +1,106 @@
+const multer = require('multer');
+const path = require('node:path');
+const fs = require('node:fs');
+const fsPromises = require('node:fs/promises');
+const crypto = require('node:crypto');
+const JSZip = require('jszip');
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
+async function validateResumeFile(file) {
+  const handle = await fsPromises.open(file.path, 'r');
+
+  try {
+    const header = Buffer.alloc(8);
+    const { bytesRead } = await handle.read(header, 0, 8, 0);
+
+    if (file.mimetype === 'application/pdf') {
+      return (
+        bytesRead >= 5 &&
+        header.subarray(0, 5).toString('ascii') === '%PDF-'
+      );
+    }
+
+    if (
+      file.mimetype ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      if (
+        bytesRead < 4 ||
+        !header.subarray(0, 4).equals(
+          Buffer.from([0x50, 0x4b, 0x03, 0x04])
+        )
+      ) {
+        return false;
+      }
+
+      try {
+        const stats = await fsPromises.stat(file.path);
+
+        if (stats.size > 5 * 1024 * 1024) {
+          return false;
+        }
+
+        const data = await fsPromises.readFile(file.path);
+        const zip = await JSZip.loadAsync(data);
+
+        const requiredFiles = [
+          '[Content_Types].xml',
+          '_rels/.rels',
+          'word/document.xml'
+        ];
+
+        return requiredFiles.every(
+          name => zip.file(name) !== null
+        );
+      } catch (error) {
+        return false;
+      }
+    }
+
+    return false;
+  } finally {
+    await handle.close();
+  }
+}
+const resumeStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads', 'resumes');
+
+    fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const uniqueName = crypto.randomUUID() + extension;
+
+    cb(null, uniqueName);
+  }
+});
+const uploadResume = multer({
+  storage: resumeStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (
+      !allowedTypes.includes(file.mimetype) ||
+      !['.pdf', '.docx'].includes(extension)
+    ) {
+      return cb(new Error('Only PDF and DOCX resumes are allowed'));
+    }
+
+    cb(null, true);
+  }
+});
 const fields = { firstName: 100, lastName: 100, phone: 50, location: 200, headline: 200 };
 const columns = 'user_id AS "userId", first_name AS "firstName", last_name AS "lastName", phone, location, headline, summary';
 function validateProfile(body) {
@@ -150,6 +248,171 @@ function authenticateUser(req, res, next) {
       req.user = result.rows[0]; next();
     } catch (error) { next(error); }
   }
+  app.post('/api/resumes', authenticateUser, uploadResume.single('resume'), async (req, res, next) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Please upload a PDF or DOCX resume.' });
+  }
+  try {
+  const isValid = await validateResumeFile(req.file);
+
+  if (!isValid) {
+    await fsPromises.unlink(req.file.path);
+    return res.status(400).json({
+      message: 'Invalid resume file content. Please upload a valid PDF or DOCX.'
+    });
+  }
+} catch (error) {
+  await fsPromises.unlink(req.file.path).catch(() => {});
+  return next(error);
+}
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO resumes
+       (user_id, original_name, storage_path, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, original_name, file_size, mime_type, uploaded_at`,
+      [
+        req.user.id,
+        req.file.originalname,
+        req.file.path,
+        req.file.size,
+        req.file.mimetype
+      ]
+    );
+
+    res.status(201).json({
+      message: 'Resume uploaded successfully.',
+      resume: result.rows[0]
+    });
+  } catch (error) {
+    fs.unlink(req.file.path, () => {});
+    next(error);
+  }
+});
+app.get('/api/resumes', authenticateUser, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, original_name, file_size, mime_type, uploaded_at
+       FROM resumes
+       WHERE user_id = $1
+       ORDER BY uploaded_at DESC, id DESC`,
+      [req.user.id]
+    );
+
+    res.json({ resumes: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+app.get('/api/resumes/:id/download', authenticateUser, async (req, res, next) => {
+  const resumeId = Number(req.params.id);
+
+  if (!Number.isSafeInteger(resumeId) || resumeId < 1) {
+    return res.status(400).json({ message: 'Invalid resume ID.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT original_name, storage_path
+       FROM resumes
+       WHERE id = $1 AND user_id = $2`,
+      [resumeId, req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Resume not found.' });
+    }
+
+    const resume = result.rows[0];
+
+    res.download(resume.storage_path, resume.original_name, (error) => {
+      if (error) {
+        if (!res.headersSent) {
+          next(error);
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+app.put('/api/resumes/:id', authenticateUser, uploadResume.single('resume'), async (req, res, next) => {
+  const resumeId = Number(req.params.id);
+
+  if (!req.file) {
+    return res.status(400).json({ message: 'Please upload a PDF or DOCX resume.' });
+  }
+  try {
+  const isValid = await validateResumeFile(req.file);
+
+  if (!isValid) {
+    await fsPromises.unlink(req.file.path);
+    return res.status(400).json({
+      message: 'Invalid resume file content. Please upload a valid PDF or DOCX.'
+    });
+  }
+} catch (error) {
+  await fsPromises.unlink(req.file.path).catch(() => {});
+  return next(error);
+}
+
+  try {
+    if (!Number.isSafeInteger(resumeId) || resumeId < 1) {
+      await fsPromises.unlink(req.file.path);
+      return res.status(400).json({ message: 'Invalid resume ID.' });
+    }
+
+    const existing = await pool.query(
+      `SELECT storage_path
+       FROM resumes
+       WHERE id = $1 AND user_id = $2`,
+      [resumeId, req.user.id]
+    );
+
+    if (existing.rowCount === 0) {
+      await fsPromises.unlink(req.file.path);
+      return res.status(404).json({ message: 'Resume not found.' });
+    }
+
+    const oldPath = existing.rows[0].storage_path;
+
+    const result = await pool.query(
+      `UPDATE resumes
+       SET original_name = $1,
+           storage_path = $2,
+           file_size = $3,
+           mime_type = $4,
+           uploaded_at = CURRENT_TIMESTAMP
+       WHERE id = $5 AND user_id = $6
+       RETURNING id, original_name, file_size, mime_type, uploaded_at`,
+      [
+        req.file.originalname,
+        req.file.path,
+        req.file.size,
+        req.file.mimetype,
+        resumeId,
+        req.user.id
+      ]
+    );
+
+    if (oldPath !== req.file.path) {
+      try {
+        await fsPromises.unlink(oldPath);
+      } catch (cleanupError) {
+        console.error('Could not remove old resume:', cleanupError);
+      }
+    }
+
+    res.json({
+      message: 'Resume replaced successfully.',
+      resume: result.rows[0]
+    });
+  } catch (error) {
+    await fsPromises.unlink(req.file.path).catch(() => {});
+    next(error);
+  }
+});
   app.post('/api/profile', authenticateUser, async (req, res, next) => {
     const values = validateProfile(req.body);
     if (!values) return res.status(400).json({ message: 'All profile fields are required and must respect length limits.' });
@@ -177,12 +440,38 @@ function authenticateUser(req, res, next) {
       res.json({ profile: result.rows[0] });
     } catch (error) { next(error); }
   });
-  app.use((error, req, res, next) => {
-    if (error.type === 'entity.parse.failed') return res.status(400).json({ message: 'Invalid JSON.' });
-    if (error.type === 'entity.too.large') return res.status(413).json({ message: 'Request too large.' });
-    console.error('Backend error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  });
+ app.use((error, req, res, next) => {
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Invalid JSON.' });
+  }
+
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'Request too large.' });
+  }
+
+  // Handle resume upload errors
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        message: 'Resume exceeds the 5 MB file size limit.'
+      });
+    }
+
+    return res.status(400).json({
+      message: 'File upload error: ' + error.message
+    });
+  }
+
+  // Handle unsupported file types
+  if (error.message === 'Only PDF and DOCX resumes are allowed') {
+    return res.status(400).json({
+      message: error.message
+    });
+  }
+
+  console.error('Backend error:', error);
+  res.status(500).json({ message: 'Internal server error' });
+});
   return app;
 }
 if (require.main === module) {
