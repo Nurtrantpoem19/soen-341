@@ -73,21 +73,20 @@
                 <span class="section-icon" aria-hidden="true">02</span>
                 <div>
                     <h2 id="current-resume-heading">Your current resume</h2>
-                    <p>View, download, replace, or remove your saved resume.</p>
+                    <p>View and download your saved resumes.</p>
                 </div>
             </div>
             <div class="unavailable-panel">
-                <p class="availability-label">Backend connection required</p>
-                <p>
-                    Resume storage and management are not connected yet. Once the backend is
-                    available, your saved resume and its management actions will appear here.
+                <p id="resume-list-status" class="availability-label" role="status" aria-live="polite">
+                    Loading your saved resumes...
                 </p>
+                <ul id="resume-list" class="resume-list"></ul>
             </div>
         </section>
 
         <p class="privacy-note">
-            Your resume is not saved by this page. Upload and management will be enabled when
-            secure backend support is available.
+            Uploaded resumes are saved to your CareerConnect account. You can view and download
+            them here; replacing and deleting resumes are not currently available.
         </p>
     </main>
 
