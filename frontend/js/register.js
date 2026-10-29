@@ -33,7 +33,7 @@ registerForm.addEventListener("submit", async function (event) {
 
     if (password.length < 8 || new TextEncoder().encode(password).length > 72) {
         errorMessage.textContent =
-            "Password must be at least 8 characters and within the supported password length.";
+            "Password must be at least 8 characters.";
         return;
     }
 
