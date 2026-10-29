@@ -52,7 +52,8 @@ t.after(async () => {
 
 await migrate(pool);
 await migrate(pool);
-  assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, 1);
+  const migrationFiles = (await fsPromises.readdir(require('node:path').join(__dirname, '..', 'db', 'migrations'))).filter(name => name.endsWith('.sql'));
+  assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, migrationFiles.length);
   const email = `test-${Date.now()}@example.com`;
   async function start(demoAuth = true) {
     server = createApp(pool, { demoAuth }).listen(0, '127.0.0.1');
