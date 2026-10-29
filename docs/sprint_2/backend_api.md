@@ -2,7 +2,7 @@ Overview
 
 The CareerConnect backend runs locally at http://localhost:3000.
 
-The API supports user registration, login, profile management, and resume management.
+The API supports user registration, login, profile management, resume management, and job search.
 
 Most endpoints require a JWT token obtained after logging in.
 
@@ -207,6 +207,62 @@ Responses:
 
 413 — File exceeds the size limit
 
+Job Search and Job Listings
+
+Job endpoints are public and read-only; no authentication is required. They allow cross-origin requests so the frontend pages can call them.
+
+Only open postings are returned. Migration 003_jobs.sql creates the jobs table and adds ten sample postings for demonstrations until recruiters can create postings (Sprint 3).
+
+Search and filter jobs
+
+GET /api/jobs
+
+Optional query parameters (all can be combined):
+
+q — keyword matched against the job title, company, and description (case-insensitive, at most 100 characters)
+
+location — text matched within the job location, e.g. Montreal or Remote (case-insensitive, at most 100 characters)
+
+category — exact category name, as returned by GET /api/jobs/categories
+
+type — one of Full-time, Part-time, Internship, Contract
+
+Example:
+
+GET /api/jobs?q=developer&location=montreal&category=Software%20Engineering
+
+Returns up to 100 jobs in a jobs array, newest first. Each job contains id, title, company, location, category, employmentType, salary, description, and postedAt.
+
+Responses:
+
+200 — Job list returned (an empty array when nothing matches)
+
+400 — A filter is too long, repeated, or type is not a valid employment type
+
+List filter options
+
+GET /api/jobs/categories
+
+Returns { "categories": [...], "employmentTypes": [...] }: the categories of open postings in alphabetical order, and the supported employment types.
+
+Responses:
+
+200 — Filter options returned
+
+Get job details
+
+GET /api/jobs/:id
+
+Returns the job in a job object, with the same fields as the search results plus requirements (one requirement per line).
+
+Responses:
+
+200 — Job returned
+
+400 — Invalid job ID
+
+404 — Job not found or no longer open
+
 Health Check
 
 GET /api/health
@@ -227,4 +283,6 @@ Resume downloads return file content rather than JSON.
 
 The backend currently has no resume deletion endpoint.
 
-Job listings and job application tracking endpoints are not included in this API yet.
+Job search endpoints do not need a JWT.
+
+Job application tracking endpoints are not included in this API yet.

@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
+const { registerJobRoutes } = require('./routes/jobs');
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
 
@@ -115,6 +116,7 @@ function validateProfile(body) {
 function createApp(pool, { demoAuth = false } = {}) {
   const app = express();
   app.use('/api/auth/register', cors());
+  app.use('/api/jobs', cors());
   app.use(express.json({ limit: '32kb' }));
   app.get('/api/health', async (req, res) => {
     try { await pool.query('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); }
@@ -440,6 +442,7 @@ app.put('/api/resumes/:id', authenticateUser, uploadResume.single('resume'), asy
       res.json({ profile: result.rows[0] });
     } catch (error) { next(error); }
   });
+  registerJobRoutes(app, pool);
  app.use((error, req, res, next) => {
   if (error.type === 'entity.parse.failed') {
     return res.status(400).json({ message: 'Invalid JSON.' });
