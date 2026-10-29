@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcrypt');
 const { migrate } = require('../db/migrate');
 const { createApp } = require('../server');
+
 test('database migrations, constraints and API persistence', async t => {
   let pool;
   if (process.env.TEST_DATABASE_URL) {
@@ -26,7 +27,7 @@ test('database migrations, constraints and API persistence', async t => {
   });
   await migrate(pool);
   await migrate(pool);
-  assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, 1);
+  assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, 2);
   const email = `test-${Date.now()}@example.com`;
   async function start(demoAuth = true) {
     server = createApp(pool, { demoAuth }).listen(0, '127.0.0.1');
@@ -65,12 +66,39 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal((await request('/api/profile/me', 'PUT', { ...profile, headline: 'Developer' }, id)).status, 200);
   await stop(); base = await start();
   assert.equal((await request('/api/profile/me', 'GET', undefined, id)).body.profile.headline, 'Developer');
+
+  // Job Application Submission and Tracking tests
+  const jobApp = { jobId: 101, jobTitle: 'Backend Developer Intern', company: 'CareerConnect Labs', coverLetter: 'Interested in this role.' };
+  assert.equal((await request('/api/applications', 'POST', jobApp)).status, 401);
+  assert.equal((await request('/api/applications', 'POST', {}, id)).status, 400);
+  const createdApp = await request('/api/applications', 'POST', jobApp, id);
+  assert.equal(createdApp.status, 201);
+  assert.equal(createdApp.body.message, 'Application submitted successfully.');
+  assert.equal(createdApp.body.application.status, 'Applied');
+  const appId = createdApp.body.application.id;
+  assert.equal((await request('/api/applications', 'POST', jobApp, id)).status, 409);
+
+  const myApps = await request('/api/applications/me', 'GET', undefined, id);
+  assert.equal(myApps.status, 200);
+  assert.equal(myApps.body.applications.length, 1);
+  assert.equal(myApps.body.applications[0].jobTitle, 'Backend Developer Intern');
+
+  assert.equal((await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'InvalidStatus' }, id)).status, 400);
+  const updatedApp = await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'Interview' }, id);
+  assert.equal(updatedApp.status, 200);
+  assert.equal(updatedApp.body.application.status, 'Interview');
+
+  assert.equal((await request('/api/applications/me?status=Interview', 'GET', undefined, id)).body.applications.length, 1);
+  assert.equal((await request('/api/applications/me?status=Offered', 'GET', undefined, id)).body.applications.length, 0);
+
   await assert.rejects(pool.query('UPDATE profiles SET summary=$1 WHERE user_id=$2', ['x'.repeat(2001), id]));
   await assert.rejects(pool.query('INSERT INTO resumes (user_id,original_name,storage_path,file_size,mime_type) VALUES ($1,$2,$3,$4,$5)', [id,'bad.exe',`bad-${id}`,10,'application/octet-stream']));
   await pool.query('INSERT INTO resumes (user_id,original_name,storage_path,file_size,mime_type) VALUES ($1,$2,$3,$4,$5)', [id,'resume.pdf',`test-${id}`,100,'application/pdf']);
   await stop(); base = await start(false);
   assert.equal((await request('/api/profile/me', 'GET', undefined, id)).status, 401);
+  assert.equal((await request('/api/applications/me', 'GET', undefined, id)).status, 401);
   await pool.query('DELETE FROM users WHERE id=$1', [id]);
   assert.equal((await pool.query('SELECT * FROM profiles WHERE user_id=$1', [id])).rowCount, 0);
   assert.equal((await pool.query('SELECT * FROM resumes WHERE user_id=$1', [id])).rowCount, 0);
+  assert.equal((await pool.query('SELECT * FROM applications WHERE user_id=$1', [id])).rowCount, 0);
 });
