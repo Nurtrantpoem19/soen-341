@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcrypt');
 const { migrate } = require('../db/migrate');
 const { createApp } = require('../server');
+const fsPromises = require('node:fs/promises');
 // Use a dedicated secret for automated tests only.
 // Production must use its own securely generated JWT_SECRET.
 process.env.JWT_SECRET = 'careerconnect-test-only-jwt-secret-not-for-production';
@@ -19,16 +20,38 @@ test('database migrations, constraints and API persistence', async t => {
     const { Pool } = database.adapters.createPg();
     pool = new Pool();
   }
-  let cleanupId;
-  let server;
-  t.after(async () => {
-    try {
-      if (server?.listening) await new Promise(resolve => server.close(resolve));
-      if (cleanupId) await pool.query('DELETE FROM users WHERE id=$1', [cleanupId]);
-    } finally { await pool.end(); }
-  });
-  await migrate(pool);
-  await migrate(pool);
+ let cleanupId;
+let secondCleanupId;
+let uploadedResumeId;
+let uploadedResumePath;
+let server;
+
+t.after(async () => {
+  try {
+    if (server?.listening) {
+      await new Promise(resolve => server.close(resolve));
+    }
+
+    if (uploadedResumePath) {
+      await fsPromises.unlink(uploadedResumePath).catch(error => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+    }
+
+    if (cleanupId) {
+      await pool.query('DELETE FROM users WHERE id=$1', [cleanupId]);
+    }
+
+    if (secondCleanupId) {
+      await pool.query('DELETE FROM users WHERE id=$1', [secondCleanupId]);
+    }
+  } finally {
+    await pool.end();
+  }
+});
+
+await migrate(pool);
+await migrate(pool);
   assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, 1);
   const email = `test-${Date.now()}@example.com`;
   async function start(demoAuth = true) {
@@ -77,7 +100,345 @@ assert.equal(login.status, 200);
 assert.ok(login.body.token);
 
 const token = login.body.token;
+// Test authenticated resume upload
+const resumeForm = new FormData();
 
+const pdfContent = Buffer.from(
+  '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF'
+);
+
+resumeForm.append(
+  'resume',
+  new Blob([pdfContent], { type: 'application/pdf' }),
+  'automated-test-resume.pdf'
+);
+
+const resumeUpload = await fetch(base + '/api/resumes', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: resumeForm
+});
+
+assert.equal(resumeUpload.status, 201);
+
+const uploadedResume = await resumeUpload.json();
+uploadedResumeId = uploadedResume.resume.id;
+
+assert.equal(uploadedResume.message, 'Resume uploaded successfully.');
+assert.equal(uploadedResume.resume.original_name, 'automated-test-resume.pdf');
+
+console.log('Resume upload test passed.');
+const resumeList = await fetch(base + '/api/resumes', {
+  method: 'GET',
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+assert.equal(resumeList.status, 200);
+
+const resumeListBody = await resumeList.json();
+
+assert.ok(Array.isArray(resumeListBody.resumes));
+
+const listedResume = resumeListBody.resumes.find(
+  resume => resume.id === uploadedResume.resume.id
+);
+
+assert.ok(listedResume);
+assert.equal(listedResume.original_name, 'automated-test-resume.pdf');
+
+console.log('Resume listing test passed.');
+// Test authenticated resume download
+const resumeDownload = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}/download`,
+  {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
+
+assert.equal(resumeDownload.status, 200);
+
+const downloadedPdf = Buffer.from(
+  await resumeDownload.arrayBuffer()
+);
+
+// Verify the downloaded file matches the uploaded PDF
+assert.deepEqual(downloadedPdf, pdfContent);
+
+console.log('Resume download test passed.');
+// Test authenticated resume replacement
+const replacementContent = Buffer.from(
+  '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n% Updated resume\n%%EOF'
+);
+
+const replacementForm = new FormData();
+
+replacementForm.append(
+  'resume',
+  new Blob([replacementContent], { type: 'application/pdf' }),
+  'updated-automated-resume.pdf'
+);
+
+const replacementResponse = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}`,
+  {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: replacementForm
+  }
+);
+
+assert.equal(replacementResponse.status, 200);
+
+const replacementBody = await replacementResponse.json();
+
+assert.equal(replacementBody.message, 'Resume replaced successfully.');
+assert.equal(replacementBody.resume.id, uploadedResume.resume.id);
+assert.equal(
+  replacementBody.resume.original_name,
+  'updated-automated-resume.pdf'
+);
+
+// Verify that downloading now returns the replacement file
+const updatedDownload = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}/download`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
+
+assert.equal(updatedDownload.status, 200);
+
+const updatedPdf = Buffer.from(await updatedDownload.arrayBuffer());
+
+assert.deepEqual(updatedPdf, replacementContent);
+
+console.log('Resume replacement test passed.');
+const resumeOwnerCheck = await pool.query(
+  'SELECT id, user_id, storage_path FROM resumes WHERE id = $1',
+  [uploadedResume.resume.id]
+);
+uploadedResumePath = resumeOwnerCheck.rows[0].storage_path;
+
+const path = require('node:path');
+
+const resumeDirectory = path.join(__dirname, '..', 'uploads', 'resumes');
+
+// Resume endpoints must require authentication
+const protectedEndpoints = [
+  {
+    method: 'GET',
+    path: '/api/resumes'
+  },
+  {
+    method: 'GET',
+    path: `/api/resumes/${uploadedResume.resume.id}/download`
+  },
+  {
+    method: 'POST',
+    path: '/api/resumes'
+  },
+  {
+    method: 'PUT',
+    path: `/api/resumes/${uploadedResume.resume.id}`
+  }
+];
+
+for (const endpoint of protectedEndpoints) {
+  const response = await fetch(base + endpoint.path, {
+    method: endpoint.method
+  });
+
+  assert.equal(
+    response.status,
+    401,
+    `${endpoint.method} ${endpoint.path} should require authentication`
+  );
+}
+
+console.log('Resume authentication tests passed.');
+// Register a second user
+const secondEmail = `second-user-${Date.now()}@example.com`;
+
+const secondRegistration = await request('/api/auth/register', 'POST', {
+  email: secondEmail,
+  password: 'SecondPass123!'
+});
+
+assert.equal(secondRegistration.status, 201);
+secondCleanupId = secondRegistration.body.user.id;
+
+// Log in as the second user
+const secondLogin = await request('/api/auth/login', 'POST', {
+  email: secondEmail,
+  password: 'SecondPass123!'
+});
+
+assert.equal(secondLogin.status, 200);
+
+const secondToken = secondLogin.body.token;
+
+// User B must not be able to download User A's resume
+const forbiddenDownload = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}/download`,
+  {
+    headers: {
+      Authorization: `Bearer ${secondToken}`
+    }
+  }
+);
+
+assert.equal(forbiddenDownload.status, 404);
+
+// User B should not see User A's resume in their list
+const secondUserList = await fetch(base + '/api/resumes', {
+  headers: {
+    Authorization: `Bearer ${secondToken}`
+  }
+});
+
+assert.equal(secondUserList.status, 200);
+
+const secondUserResumes = await secondUserList.json();
+
+assert.deepEqual(secondUserResumes.resumes, []);
+
+console.log('Resume ownership tests passed.');
+const invalidForm = new FormData();
+
+invalidForm.append(
+  'resume',
+  new Blob(['This is not a real PDF'], {
+    type: 'application/pdf'
+  }),
+  'fake-resume.pdf'
+);
+
+const invalidUpload = await fetch(base + '/api/resumes', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: invalidForm
+});
+
+assert.equal(invalidUpload.status, 400);
+
+console.log('Invalid resume upload test passed.');
+// Test that another user cannot replace this resume
+const unauthorizedForm = new FormData();
+
+unauthorizedForm.append(
+  'resume',
+  new Blob([replacementContent], { type: 'application/pdf' }),
+  'unauthorized-replacement.pdf'
+);
+
+const unauthorizedReplacement = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}`,
+  {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${secondToken}`
+    },
+    body: unauthorizedForm
+  }
+);
+
+assert.equal(unauthorizedReplacement.status, 404);
+
+// Confirm the original owner's file was not changed
+const ownerDownload = await fetch(
+  base + `/api/resumes/${uploadedResume.resume.id}/download`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
+
+assert.equal(ownerDownload.status, 200);
+
+const ownerPdf = Buffer.from(await ownerDownload.arrayBuffer());
+
+assert.deepEqual(ownerPdf, replacementContent);
+
+console.log('Resume replacement ownership test passed.');
+// Test rejection of resumes larger than 5 MB
+const oversizedForm = new FormData();
+
+const oversizedPdf = Buffer.concat([
+  Buffer.from('%PDF-1.4\n'),
+  Buffer.alloc(6 * 1024 * 1024, 65)
+]);
+
+oversizedForm.append(
+  'resume',
+  new Blob([oversizedPdf], { type: 'application/pdf' }),
+  'oversized-resume.pdf'
+);
+
+const oversizedUpload = await fetch(base + '/api/resumes', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: oversizedForm
+});
+
+assert.equal(oversizedUpload.status, 413);
+
+console.log('Resume file size limit test passed.');
+// Test rejection of unsupported file types
+const unsupportedForm = new FormData();
+
+unsupportedForm.append(
+  'resume',
+  new Blob(['This is a text file'], {
+    type: 'text/plain'
+  }),
+  'resume.txt'
+);
+
+const unsupportedUpload = await fetch(base + '/api/resumes', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: unsupportedForm
+});
+
+assert.equal(unsupportedUpload.status, 400);
+
+console.log('Unsupported resume file type test passed.');
+// Verify rejected uploads did not create database records
+const finalResumeList = await fetch(base + '/api/resumes', {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+assert.equal(finalResumeList.status, 200);
+
+const finalResumeBody = await finalResumeList.json();
+
+assert.equal(finalResumeBody.resumes.length, 1);
+assert.equal(
+  finalResumeBody.resumes[0].id,
+  uploadedResume.resume.id
+);
+
+console.log('Rejected upload database cleanup test passed.');
 // Incorrect password must be rejected
 const invalidLogin = await request('/api/auth/login', 'POST', {
   email,
