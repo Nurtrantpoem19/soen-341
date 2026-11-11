@@ -225,6 +225,26 @@ function createApp(pool, { demoAuth = false } = {}) {
     }
   });
 
+  // User login
+  app.post('/api/auth/login', async (req, res, next) => {
+    // ... login logic ...
+  });
+
+  // User logout (Issue #35)
+  app.post('/api/auth/logout', authenticateUser, async (req, res, next) => {
+    try {
+      return res.json({
+        message: 'Logged out successfully.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Verify the logged-in user using a JWT token
+  function authenticateUser(req, res, next) {
+  }
+
   // Verify the logged-in user using a JWT token
   function authenticateUser(req, res, next) {
     const authorization = req.get('Authorization');
