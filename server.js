@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
+const { registerApplicationAnalytics } = require('./routes/application-analytics');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -496,6 +497,7 @@ function createApp(pool, { demoAuth = false } = {}) {
   });
 
   registerJobRoutes(app, pool);
+  registerApplicationAnalytics(app, pool, authenticateUser);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
