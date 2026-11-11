@@ -125,13 +125,12 @@ function validateProfile(body) {
 
 function validateApplication(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (typeof body.jobId !== 'number' && (typeof body.jobId !== 'string' || !/^\d+$/.test(body.jobId))) return null;
   const jobId = Number(body.jobId);
   if (!Number.isSafeInteger(jobId) || jobId < 1 || jobId > 2147483647) return null;
-  if (typeof body.jobTitle !== 'string' || !body.jobTitle.trim() || body.jobTitle.trim().length > 200) return null;
-  if (typeof body.company !== 'string' || !body.company.trim() || body.company.trim().length > 200) return null;
   const coverLetter = body.coverLetter === undefined ? '' : body.coverLetter;
   if (typeof coverLetter !== 'string' || coverLetter.length > 2000) return null;
-  return [jobId, body.jobTitle.trim(), body.company.trim(), coverLetter.trim()];
+  return [jobId, coverLetter.trim()];
 }
 
 function createApp(pool, { demoAuth = false } = {}) {
@@ -504,12 +503,15 @@ function createApp(pool, { demoAuth = false } = {}) {
   // 1. Submit a new job application and return confirmation
   app.post('/api/applications', authenticateUser, async (req, res, next) => {
     const values = validateApplication(req.body);
-    if (!values) return res.status(400).json({ message: 'Provide a valid jobId, jobTitle, and company.' });
+    if (!values) return res.status(400).json({ message: 'Provide a positive integer jobId and an optional coverLetter of at most 2000 characters.' });
     try {
       const result = await pool.query(
-        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter) VALUES ($1,$2,$3,$4,$5) RETURNING ${applicationColumns}`,
+        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter)
+         SELECT $1::integer, id, title, company, $3::text FROM jobs WHERE id=$2 AND is_open=TRUE
+         RETURNING ${applicationColumns}`,
         [req.user.id, ...values]
       );
+      if (!result.rowCount) return res.status(404).json({ message: 'Open job not found.' });
       res.status(201).json({
         message: 'Application submitted successfully.',
         application: result.rows[0]
