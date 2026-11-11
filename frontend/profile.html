@@ -26,6 +26,12 @@
             </div>
         </section>
 
+        <section class="saved-profile-section" aria-labelledby="saved-profile-heading">
+            <div class="profile-section-heading">
+                <h3 id="saved-profile-heading">Saved profile details</h3>
+                <p>These five fields are saved to your CareerConnect account.</p>
+            </div>
+
         <form id="profile-form" novalidate>
 
             <div class="form-row">
@@ -99,6 +105,167 @@
             </button>
 
         </form>
+        </section>
+
+        <section class="profile-previews" aria-labelledby="profile-previews-heading">
+            <div class="preview-notice" role="note">
+                <strong>Preview only — not saved to your account.</strong>
+                <span>
+                    The sections below are local previews. Their information is not sent to
+                    the server and will be lost when you leave or reload this page.
+                </span>
+            </div>
+
+            <div class="profile-section-heading previews-heading">
+                <h3 id="profile-previews-heading">Profile enhancements</h3>
+                <p>Optional information to help complete your professional profile.</p>
+            </div>
+
+            <section class="preview-card" aria-labelledby="bio-heading">
+                <div class="preview-card-heading">
+                    <h4 id="bio-heading">About Me</h4>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <label for="bio-preview">Professional summary</label>
+                <textarea
+                    id="bio-preview"
+                    maxlength="2000"
+                    rows="5"
+                    placeholder="Write a short introduction about your professional goals and strengths."
+                    aria-describedby="bio-count"
+                ></textarea>
+                <p class="field-hint"><span id="bio-count" aria-live="polite">0</span> / 2,000 characters</p>
+            </section>
+
+            <section class="preview-card" aria-labelledby="picture-heading">
+                <div class="preview-card-heading">
+                    <h4 id="picture-heading">Profile picture</h4>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <div class="picture-preview-row">
+                    <div class="picture-avatar" id="picture-avatar">
+                        <span id="picture-initials">?</span>
+                        <img id="picture-preview" alt="Selected profile picture preview" hidden>
+                    </div>
+                    <div class="picture-controls">
+                        <label for="picture-file">Choose a JPG or PNG image</label>
+                        <input
+                            type="file"
+                            id="picture-file"
+                            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                            aria-describedby="picture-hint picture-status"
+                        >
+                        <p id="picture-hint" class="field-hint">
+                            Maximum 5 MB. This image is only previewed in your browser.
+                        </p>
+                        <p id="picture-status" class="preview-feedback" role="status" aria-live="polite"></p>
+                        <button class="secondary-button" id="clear-picture" type="button" disabled>
+                            Clear preview
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="preview-card" aria-labelledby="links-heading">
+                <div class="preview-card-heading">
+                    <h4 id="links-heading">Professional links</h4>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <div class="form-row preview-form-row">
+                    <div>
+                        <label for="linkedin-url">LinkedIn URL (optional)</label>
+                        <input
+                            type="url"
+                            id="linkedin-url"
+                            inputmode="url"
+                            autocomplete="url"
+                            placeholder="https://www.linkedin.com/in/your-name"
+                            aria-describedby="linkedin-status"
+                        >
+                        <p id="linkedin-status" class="preview-feedback" role="status" aria-live="polite"></p>
+                    </div>
+                    <div>
+                        <label for="github-url">GitHub URL (optional)</label>
+                        <input
+                            type="url"
+                            id="github-url"
+                            inputmode="url"
+                            autocomplete="url"
+                            placeholder="https://github.com/your-name"
+                            aria-describedby="github-status"
+                        >
+                        <p id="github-status" class="preview-feedback" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+                <div id="professional-links" class="preview-links" aria-label="Validated profile link previews"></div>
+            </section>
+
+            <section class="preview-card" aria-labelledby="preferences-heading">
+                <div class="preview-card-heading">
+                    <h4 id="preferences-heading">Job preferences</h4>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <div>
+                    <label for="preferred-title">Preferred job title (optional)</label>
+                    <input
+                        type="text"
+                        id="preferred-title"
+                        maxlength="200"
+                        placeholder="e.g. Frontend Developer"
+                    >
+                </div>
+                <div class="form-row preview-form-row">
+                    <div>
+                        <label for="employment-type">Employment type (optional)</label>
+                        <select id="employment-type">
+                            <option value="">Select an employment type</option>
+                            <option value="all">All — open to any employment type</option>
+                            <option value="internship">Internship</option>
+                            <option value="full-time">Full-time</option>
+                            <option value="part-time">Part-time</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="work-arrangement">Work arrangement (optional)</label>
+                        <select id="work-arrangement">
+                            <option value="">Select an arrangement</option>
+                            <option value="all">All — open to any work arrangement</option>
+                            <option value="remote">Remote</option>
+                            <option value="hybrid">Hybrid</option>
+                            <option value="on-site">On-site</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="preview-card" aria-labelledby="education-heading">
+                <div class="preview-card-heading">
+                    <div>
+                        <h4 id="education-heading">Education</h4>
+                        <p class="field-hint">Add one or more education entries.</p>
+                    </div>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <div id="education-entries" class="entry-list" aria-live="polite"></div>
+                <button class="secondary-button add-entry-button" id="add-education" type="button">
+                    Add education
+                </button>
+            </section>
+
+            <section class="preview-card" aria-labelledby="experience-heading">
+                <div class="preview-card-heading">
+                    <div>
+                        <h4 id="experience-heading">Work experience</h4>
+                        <p class="field-hint">Add one or more work experience entries.</p>
+                    </div>
+                    <span class="preview-badge">Preview</span>
+                </div>
+                <div id="experience-entries" class="entry-list" aria-live="polite"></div>
+                <button class="secondary-button add-entry-button" id="add-experience" type="button">
+                    Add experience
+                </button>
+            </section>
+        </section>
 
         <p>
             Looking for opportunities?

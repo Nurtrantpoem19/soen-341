@@ -314,6 +314,63 @@ body {
     line-height: 1.6;
 }
 
+.resume-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.resume-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #eadfe2;
+}
+
+.resume-list-details {
+    min-width: 0;
+}
+
+.resume-list-name,
+.resume-list-metadata {
+    margin: 0;
+}
+
+.resume-list-name {
+    overflow-wrap: anywhere;
+    color: #35101c;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.resume-list-metadata {
+    margin-top: 4px;
+    color: #73656a;
+    font-size: 12px;
+}
+
+.resume-download-button {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    color: #7a1f3d;
+    background: transparent;
+    border: 1px solid #b76e79;
+    border-radius: 5px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.resume-download-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
 .privacy-note {
     max-width: 560px;
     margin: 24px auto 0;
