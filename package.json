@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --env-file=.env server.js",
     "db:migrate": "node --env-file=.env scripts/migrate.js",
-    "test": "node --test"
+    "test": "node --test --test-concurrency=1"
   },
   "repository": {
     "type": "git",
