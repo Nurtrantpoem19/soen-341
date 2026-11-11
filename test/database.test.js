@@ -568,6 +568,23 @@ test('database migrations, constraints and API persistence', async t => {
     200
   );
 
+  // --- ISSUE #35: LOGOUT API TESTS ---
+  const logoutUnauth = await fetch(base + '/api/auth/logout', {
+    method: 'POST'
+  });
+  assert.equal(logoutUnauth.status, 401);
+
+  const logoutAuth = await fetch(base + '/api/auth/logout', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  assert.equal(logoutAuth.status, 200);
+  const logoutBody = await logoutAuth.json();
+  assert.equal(logoutBody.message, 'Logged out successfully.');
+  console.log('Logout API test passed.');
+
   // Restart server and verify persistence
   await stop();
   base = await start();
