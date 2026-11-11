@@ -24,6 +24,7 @@ test('database migrations, constraints and API persistence', async t => {
   }
   let cleanupId;
   let secondCleanupId;
+  let applicationJobId;
   let uploadedResumeId;
   let uploadedResumePath;
   let server;
@@ -47,6 +48,7 @@ test('database migrations, constraints and API persistence', async t => {
       if (secondCleanupId) {
         await pool.query('DELETE FROM users WHERE id=$1', [secondCleanupId]);
       }
+      if (applicationJobId) await pool.query('DELETE FROM jobs WHERE id=$1', [applicationJobId]);
     } finally {
       await pool.end();
     }
@@ -595,7 +597,9 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal(fetchedAfterRestart.body.profile.headline, 'Developer');
 
   // Job Application Submission and Tracking tests
-  const jobApp = { jobId: 101, jobTitle: 'Backend Developer Intern', company: 'CareerConnect Labs', coverLetter: 'Interested in this role.' };
+  applicationJobId = (await pool.query(`INSERT INTO jobs (title,company,location,category,employment_type,description)
+    VALUES ('Backend Developer Intern','CareerConnect Labs','Montreal','Engineering','Internship','Build backend APIs') RETURNING id`)).rows[0].id;
+  const jobApp = { jobId: applicationJobId, jobTitle: 'Backend Developer Intern', company: 'CareerConnect Labs', coverLetter: 'Interested in this role.' };
   assert.equal((await request('/api/applications', 'POST', jobApp)).status, 401);
   assert.equal((await request('/api/applications', 'POST', {}, token)).status, 400);
   const createdApp = await request('/api/applications', 'POST', jobApp, token);
