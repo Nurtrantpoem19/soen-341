@@ -456,6 +456,7 @@ test('database migrations, constraints and API persistence', async t => {
   assert.ok(await bcrypt.compare('ExamplePass123!', hash));
   assert.equal((await request('/api/auth/register', 'POST', { email: email.toUpperCase(), password: 'ExamplePass123!' })).status, 409);
 
+  // --- PROFILE CREATION & MANAGEMENT TESTS ---
   const profile = {
     firstName: 'Test',
     lastName: 'Student',
@@ -464,29 +465,99 @@ test('database migrations, constraints and API persistence', async t => {
     headline: 'Student'
   };
 
-  // Unauthenticated requests must be rejected
-  assert.equal(
-    (await request('/api/profile', 'POST', profile)).status,
-    401
-  );
+  // 1. Authentication protection & appropriate error responses
+  const unauthProfilePost = await request('/api/profile', 'POST', profile);
+  assert.equal(unauthProfilePost.status, 401);
+  assert.equal(unauthProfilePost.body.message, 'Authentication required.');
 
-  // Invalid profile data must be rejected
-  assert.equal(
-    (await request('/api/profile', 'POST', {}, token)).status,
-    400
-  );
+  const invalidTokenProfilePost = await request('/api/profile', 'POST', profile, 'invalid.jwt.token');
+  assert.equal(invalidTokenProfilePost.status, 401);
+  assert.equal(invalidTokenProfilePost.body.message, 'Invalid or expired authentication token.');
 
-  // Create profile
-  assert.equal(
-    (await request('/api/profile', 'POST', profile, token)).status,
-    201
-  );
+  const unauthProfileGet = await request('/api/profile/me', 'GET');
+  assert.equal(unauthProfileGet.status, 401);
+  assert.equal(unauthProfileGet.body.message, 'Authentication required.');
 
-  // Prevent duplicate profiles
-  assert.equal(
-    (await request('/api/profile', 'POST', profile, token)).status,
-    409
-  );
+  const missingProfileGet = await request('/api/profile/me', 'GET', undefined, token);
+  assert.equal(missingProfileGet.status, 404);
+  assert.equal(missingProfileGet.body.message, 'Profile not found.');
+  console.log('Profile authentication protection test passed.');
+
+  // 2. Required-field validation & length limits (400 Bad Request)
+  const emptyBodyProfile = await request('/api/profile', 'POST', {}, token);
+  assert.equal(emptyBodyProfile.status, 400);
+  assert.equal(emptyBodyProfile.body.message, 'All profile fields are required and must respect length limits.');
+
+  const profileFieldLimits = { firstName: 100, lastName: 100, phone: 50, location: 200, headline: 200 };
+  for (const [fieldName, maxLength] of Object.entries(profileFieldLimits)) {
+    // Missing required field
+    const missingFieldBody = { ...profile };
+    delete missingFieldBody[fieldName];
+    const missingFieldRes = await request('/api/profile', 'POST', missingFieldBody, token);
+    assert.equal(missingFieldRes.status, 400, `Missing ${fieldName} must return 400`);
+    assert.equal(missingFieldRes.body.message, 'All profile fields are required and must respect length limits.');
+
+    // Blank / whitespace-only field
+    const blankFieldRes = await request('/api/profile', 'POST', { ...profile, [fieldName]: '   ' }, token);
+    assert.equal(blankFieldRes.status, 400, `Whitespace ${fieldName} must return 400`);
+    assert.equal(blankFieldRes.body.message, 'All profile fields are required and must respect length limits.');
+
+    // Non-string field type
+    const nonStringFieldRes = await request('/api/profile', 'POST', { ...profile, [fieldName]: 12345 }, token);
+    assert.equal(nonStringFieldRes.status, 400, `Non-string ${fieldName} must return 400`);
+
+    // Exceeding maximum character length
+    const oversizedFieldRes = await request('/api/profile', 'POST', { ...profile, [fieldName]: 'a'.repeat(maxLength + 1) }, token);
+    assert.equal(oversizedFieldRes.status, 400, `Oversized ${fieldName} must return 400`);
+    assert.equal(oversizedFieldRes.body.message, 'All profile fields are required and must respect length limits.');
+  }
+  console.log('Profile required-field validation test passed.');
+
+  // 3. Valid profile creation, trimming, and user-profile association (201 Created)
+  const createdProfile = await request('/api/profile', 'POST', {
+    firstName: '  Test  ',
+    lastName: '  Student  ',
+    phone: ' 555-0100 ',
+    location: ' Montreal ',
+    headline: ' Student '
+  }, token);
+  assert.equal(createdProfile.status, 201);
+  assert.equal(createdProfile.body.profile.userId, id);
+  assert.equal(createdProfile.body.profile.firstName, 'Test');
+  assert.equal(createdProfile.body.profile.lastName, 'Student');
+  assert.equal(createdProfile.body.profile.phone, '555-0100');
+  assert.equal(createdProfile.body.profile.location, 'Montreal');
+  assert.equal(createdProfile.body.profile.headline, 'Student');
+  assert.equal(createdProfile.body.profile.summary, '');
+
+  // Verify database persistence and user association
+  const persistedProfileRow = await pool.query('SELECT user_id, first_name, last_name, phone, location, headline FROM profiles WHERE user_id=$1', [id]);
+  assert.equal(persistedProfileRow.rowCount, 1);
+  assert.equal(persistedProfileRow.rows[0].user_id, id);
+  assert.equal(persistedProfileRow.rows[0].first_name, 'Test');
+
+  // Verify user isolation: User B does not see User A's profile and can create their own associated profile
+  const secondUserProfileGet = await request('/api/profile/me', 'GET', undefined, secondToken);
+  assert.equal(secondUserProfileGet.status, 404);
+  assert.equal(secondUserProfileGet.body.message, 'Profile not found.');
+
+  const secondUserProfileCreate = await request('/api/profile', 'POST', {
+    firstName: 'Second',
+    lastName: 'User',
+    phone: '555-0200',
+    location: 'Toronto',
+    headline: 'Engineer'
+  }, secondToken);
+  assert.equal(secondUserProfileCreate.status, 201);
+  assert.equal(secondUserProfileCreate.body.profile.userId, secondCleanupId);
+  assert.equal(secondUserProfileCreate.body.profile.firstName, 'Second');
+  console.log('Profile creation, persistence, and user association tests passed.');
+
+  // 4. Duplicate creation handling (409 Conflict)
+  const duplicateProfile = await request('/api/profile', 'POST', profile, token);
+  assert.equal(duplicateProfile.status, 409);
+  assert.equal(duplicateProfile.body.message, 'Profile already exists.');
+  console.log('Profile duplicate creation handling test passed.');
 
   // Update profile
   assert.equal(
@@ -501,11 +572,10 @@ test('database migrations, constraints and API persistence', async t => {
   await stop();
   base = await start();
 
-  assert.equal(
-    (await request('/api/profile/me', 'GET', undefined, token))
-      .body.profile.headline,
-    'Developer'
-  );
+  const fetchedAfterRestart = await request('/api/profile/me', 'GET', undefined, token);
+  assert.equal(fetchedAfterRestart.status, 200);
+  assert.equal(fetchedAfterRestart.body.profile.userId, id);
+  assert.equal(fetchedAfterRestart.body.profile.headline, 'Developer');
 
   // Job Application Submission and Tracking tests
   const jobApp = { jobId: 101, jobTitle: 'Backend Developer Intern', company: 'CareerConnect Labs', coverLetter: 'Interested in this role.' };
