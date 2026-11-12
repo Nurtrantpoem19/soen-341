@@ -11,8 +11,12 @@ const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
 const { registerApplicationAnalytics } = require('./routes/application-analytics');
+<<<<<<< Updated upstream
 const { registerNotificationRoutes } = require('./routes/notifications');
 const { createApplicationSubmissionNotifications } = require('./services/notifications');
+=======
+const { registerRecruiterRoutes } = require('./routes/recruiter');
+>>>>>>> Stashed changes
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -158,12 +162,15 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   app.post('/api/auth/register', async (req, res, next) => {
     const { email, password } = req.body || {};
+    // Optional account type (Sprint 3). Accounts are job seekers unless they register as a recruiter.
+    const role = req.body && req.body.role !== undefined ? req.body.role : 'job_seeker';
+    if (!['job_seeker', 'recruiter'].includes(role)) return res.status(400).json({ message: 'role must be job_seeker or recruiter.' });
     if (typeof email !== 'string' || email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password) > 72) {
       return res.status(400).json({ message: 'Provide a valid email and a password of at least 8 characters and at most 72 UTF-8 bytes.' });
     }
     try {
       const hash = await bcrypt.hash(password, 10);
-      const result = await pool.query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email', [email.trim().toLowerCase(), hash]);
+      const result = await pool.query('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role', [email.trim().toLowerCase(), hash, role]);
       res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'User with this email already exists.' });
@@ -186,7 +193,7 @@ function createApp(pool, { demoAuth = false } = {}) {
 
     try {
       const result = await pool.query(
-        'SELECT id, email, password_hash FROM users WHERE email = $1',
+        'SELECT id, email, role, password_hash FROM users WHERE email = $1',
         [email.trim().toLowerCase()]
       );
 
@@ -228,7 +235,8 @@ function createApp(pool, { demoAuth = false } = {}) {
         token,
         user: {
           id: user.id,
-          email: user.email
+          email: user.email,
+          role: user.role
         }
       });
 
@@ -509,7 +517,11 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   registerJobRoutes(app, pool);
   registerApplicationAnalytics(app, pool, authenticateUser);
+<<<<<<< Updated upstream
   registerNotificationRoutes(app, pool, authenticateUser);
+=======
+  registerRecruiterRoutes(app, pool, authenticateUser);
+>>>>>>> Stashed changes
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 

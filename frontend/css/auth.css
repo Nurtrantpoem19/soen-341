@@ -70,6 +70,28 @@ form input {
     outline: none;
 }
 
+form select {
+    width: 100%;
+    padding: 12px 5px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 0;
+    color: white;
+    font-size: 16px;
+    outline: none;
+    cursor: pointer;
+}
+
+form select:focus {
+    border-bottom: 2px solid white;
+}
+
+form option {
+    color: #35101c;
+    background: #fff;
+}
+
 form input::placeholder {
     color: rgba(255, 255, 255, 0.5);
 }

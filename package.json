@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node --env-file=.env server.js",
+    "dev": "node --watch --env-file=.env server.js",
     "db:migrate": "node --env-file=.env scripts/migrate.js",
     "test": "node --test --test-concurrency=1"
   },

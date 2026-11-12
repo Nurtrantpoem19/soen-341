@@ -5,6 +5,7 @@ const closeButton = document.getElementById("sidebar-close");
 const backdrop = document.getElementById("sidebar-backdrop");
 const mobileLayout = window.matchMedia("(max-width: 700px)");
 const TOKEN_KEY = "careerconnect_token";
+const ROLE_KEY = "careerconnect_role";
 
 function isExpiredTokenHint(token) {
     const parts = token.split(".");
@@ -31,7 +32,14 @@ function syncAuthenticationNavigation() {
 
     if (token && !authenticated) {
         sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(ROLE_KEY);
     }
+
+    // Recruiter-only links. This only hides navigation; the backend enforces recruiter access.
+    const recruiter = authenticated && sessionStorage.getItem(ROLE_KEY) === "recruiter";
+    document.querySelectorAll("[data-role='recruiter']").forEach(function (element) {
+        element.hidden = !recruiter;
+    });
 
     document.querySelectorAll("[data-auth-state]").forEach(function (element) {
         element.hidden = element.dataset.authState === "authenticated"
@@ -43,6 +51,7 @@ function syncAuthenticationNavigation() {
 document.querySelectorAll("[data-logout]").forEach(function (button) {
     button.addEventListener("click", function () {
         sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(ROLE_KEY);
         window.location.reload();
     });
 });

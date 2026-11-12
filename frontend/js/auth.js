@@ -48,7 +48,10 @@ loginForm.addEventListener("submit", function (event) {
             }
 
             sessionStorage.setItem("careerconnect_token", data.token);
-            window.location.href = "../index.html";
+            // The role only decides which pages are shown; the backend checks it again on every recruiter request.
+            const isRecruiter = Boolean(data.user) && data.user.role === "recruiter";
+            sessionStorage.setItem("careerconnect_role", isRecruiter ? "recruiter" : "job_seeker");
+            window.location.href = isRecruiter ? "recruiter.html" : "../index.html";
         })
         .catch(function (error) {
             errorMessage.textContent =

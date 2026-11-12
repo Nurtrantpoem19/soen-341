@@ -55,7 +55,8 @@ registerForm.addEventListener("submit", async function (event) {
                 },
                 body: JSON.stringify({
                     email: email,
-                    password: password
+                    password: password,
+                    role: document.getElementById("role").value
                 })
             }
         );
