@@ -143,5 +143,6 @@ document.addEventListener("keydown", function (event) {
 mobileLayout.addEventListener("change", syncLayout);
 window.addEventListener("pageshow", syncAuthenticationNavigation);
 window.addEventListener("storage", syncAuthenticationNavigation);
+window.addEventListener("careerconnect:auth-invalid", syncAuthenticationNavigation);
 syncAuthenticationNavigation();
 syncLayout();
