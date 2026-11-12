@@ -1,6 +1,8 @@
 // Recruiter dashboard and posting management (Sprint 3).
 // Every route requires a valid JWT and the recruiter role, and only ever touches the recruiter's own postings.
 const STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
+const { randomUUID } = require('node:crypto');
+const { createNotification } = require('../services/notifications');
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'];
 const jobColumns = 'id, title, company, location, category, employment_type AS "employmentType", salary, description, requirements, is_open AS "isOpen", posted_at AS "postedAt"';
 // Field name -> [maximum length, required]. Limits match the CHECK constraints of the jobs table.
@@ -170,19 +172,52 @@ function registerRecruiterRoutes(app, pool, authenticateUser) {
     if (typeof status !== 'string' || !STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Provide a valid status: Applied, Under Review, Interview, Offered, or Rejected.' });
     }
+    let client;
+    let transactionOpen = false;
     try {
-      const owned = await pool.query(
-        'SELECT a.id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id=$1 AND j.recruiter_id=$2',
+      client = await pool.connect();
+      await client.query('BEGIN');
+      transactionOpen = true;
+      const owned = await client.query(
+        'SELECT a.* FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id=$1 AND j.recruiter_id=$2 FOR UPDATE',
         [id, req.user.id]
       );
-      if (!owned.rowCount) return res.status(404).json({ message: 'Application not found.' });
-      const result = await pool.query(
+      if (!owned.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Application not found.' });
+      }
+      const previous = owned.rows[0];
+      if (previous.status === status) {
+        await client.query('COMMIT');
+        transactionOpen = false;
+        return res.json({ message: 'Application status unchanged.', application: {
+          id: previous.id, jobId: previous.job_id, status: previous.status,
+          appliedAt: previous.applied_at, updatedAt: previous.updated_at
+        } });
+      }
+      const result = await client.query(
         'UPDATE applications SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING id, job_id AS "jobId", status, applied_at AS "appliedAt", updated_at AS "updatedAt"',
         [status, id]
       );
-      if (!result.rowCount) return res.status(404).json({ message: 'Application not found.' });
+      await createNotification(client, {
+        userId: previous.user_id,
+        type: 'application_status',
+        title: 'Application status updated',
+        message: `Your application for ${previous.job_title} at ${previous.company} is now ${status}.`,
+        link: `/frontend/job.html?id=${encodeURIComponent(previous.job_id)}`,
+        applicationId: id, jobId: previous.job_id, actorUserId: req.user.id,
+        dedupeKey: `application:${id}:status:${randomUUID()}`
+      });
+      await client.query('COMMIT');
+      transactionOpen = false;
       res.json({ message: 'Application status updated.', application: result.rows[0] });
-    } catch (error) { next(error); }
+    } catch (error) {
+      if (transactionOpen) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { return next(rollbackError); }
+      }
+      next(error);
+    } finally { if (client) client.release(); }
   });
 }
 
