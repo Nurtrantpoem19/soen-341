@@ -40,6 +40,14 @@
                     accept=".pdf,application/pdf"
                     aria-describedby="file-guidance file-details upload-status"
                 >
+                <input
+                    class="visually-hidden"
+                    type="file"
+                    id="replacement-file"
+                    accept=".pdf,application/pdf"
+                    aria-hidden="true"
+                    tabindex="-1"
+                >
                 <label class="file-picker" for="resume-file">
                     <span class="upload-icon" aria-hidden="true">↑</span>
                     <span class="file-picker-title">Choose a PDF from your device</span>
@@ -86,7 +94,7 @@
 
         <p class="privacy-note">
             Uploaded resumes are saved to your CareerConnect account. You can view and download
-            them here; replacing and deleting resumes are not currently available.
+            them here, and replace a saved resume whenever it needs an update.
         </p>
     </main>
 
