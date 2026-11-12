@@ -11,12 +11,9 @@ const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
 const { registerApplicationAnalytics } = require('./routes/application-analytics');
-<<<<<<< Updated upstream
 const { registerNotificationRoutes } = require('./routes/notifications');
 const { createApplicationSubmissionNotifications } = require('./services/notifications');
-=======
-const { registerRecruiterRoutes } = require('./routes/recruiter');
->>>>>>> Stashed changes
+const { registerRecruiterRoutes } = require('./routes/recruiters');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -517,11 +514,8 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   registerJobRoutes(app, pool);
   registerApplicationAnalytics(app, pool, authenticateUser);
-<<<<<<< Updated upstream
   registerNotificationRoutes(app, pool, authenticateUser);
-=======
   registerRecruiterRoutes(app, pool, authenticateUser);
->>>>>>> Stashed changes
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
