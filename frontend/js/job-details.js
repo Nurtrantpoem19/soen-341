@@ -8,15 +8,8 @@ const applyStatus = document.getElementById("apply-status");
 const requirementsSection = document.getElementById("requirements-section");
 const requirementsList = document.getElementById("job-requirements");
 
-// Proposed integration point for Job Application Submission and Tracking (feature/sprint2-application-tracking-jack).
-// That branch adds POST /api/applications with { jobId, jobTitle, company, coverLetter } and returns { application }.
-// Replace this stub with the real request once that API and login tokens are available on main.
-const applicationApi = {
-    async submitApplication(job) {
-        void job;
-        throw new Error("Job applications will be available once application tracking is connected.");
-    }
-};
+const coverLetter = document.getElementById("cover-letter");
+const applicationLink = document.getElementById("application-link");
 
 let currentJob = null;
 
@@ -119,18 +112,31 @@ applyButton.addEventListener("click", async function () {
     applyButton.textContent = "Submitting...";
     showApplyStatus("");
 
+    let completed = false;
     try {
-        await applicationApi.submitApplication({
-            jobId: currentJob.id,
-            jobTitle: currentJob.title,
-            company: currentJob.company
+        await applicationRequest('', {
+            method: 'POST',
+            body: JSON.stringify({ jobId: currentJob.id, coverLetter: coverLetter.value.trim() })
         });
         showApplyStatus("Your application was submitted successfully.", "success");
+        completed = true;
     } catch (error) {
         showApplyStatus(error.message || "Your application could not be submitted. Please try again.");
+        completed = error.status === 409;
+        if (error.status === 401) {
+            applicationLink.href = 'login.html';
+            applicationLink.textContent = 'Log in, then return to this job to apply';
+            applicationLink.hidden = false;
+        }
     } finally {
-        applyButton.disabled = false;
-        applyButton.textContent = "Apply for this job";
+        applyButton.disabled = completed;
+        applyButton.textContent = completed ? "Already applied" : "Apply for this job";
+        if (completed) {
+            coverLetter.disabled = true;
+            applicationLink.href = 'applications.html';
+            applicationLink.textContent = 'View my applications';
+            applicationLink.hidden = false;
+        }
     }
 });
 
