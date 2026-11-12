@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Recruiter Dashboard and Posting Management on CareerConnect.">
+  <title>Recruiter Dashboard | CareerConnect</title>
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/recruiter.css">
+</head>
+<body>
+  <main class="recruiter-page">
+    <p class="home-navigation"><a href="../index.html">&larr; Back to Home</a></p>
+
+    <header class="dashboard-header">
+      <div>
+        <h1>Recruiter Dashboard</h1>
+        <p class="subtitle">Create, edit, archive, and manage your job postings and candidate applications in one place.</p>
+      </div>
+    </header>
+
+    <div id="auth-warning" class="alert alert-error hidden">
+      You must be logged in to access the Recruiter Dashboard. <a href="login.html">Go to Login</a>
+    </div>
+
+    <div id="status-banner" class="alert hidden"></div>
+
+    <div id="dashboard-content" class="dashboard-grid">
+      <!-- Left Column: Create / Edit Job Form -->
+      <section class="card form-section">
+        <h2 id="form-title">Create Job Posting</h2>
+        <form id="job-form" novalidate>
+          <input type="hidden" id="edit-job-id" value="">
+
+          <div class="field-group">
+            <label for="job-title">Job Title *</label>
+            <input type="text" id="job-title" maxlength="200" required placeholder="e.g., Software Developer Intern">
+          </div>
+
+          <div class="field-group">
+            <label for="job-company">Company *</label>
+            <input type="text" id="job-company" maxlength="200" required placeholder="e.g., Maple Byte Labs">
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="job-location">Location *</label>
+              <input type="text" id="job-location" maxlength="200" required placeholder="e.g., Montreal, QC">
+            </div>
+
+            <div class="field-group">
+              <label for="job-category">Category *</label>
+              <input type="text" id="job-category" maxlength="100" required placeholder="e.g., Software Engineering">
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="job-type">Employment Type *</label>
+              <select id="job-type" required>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Internship">Internship</option>
+                <option value="Contract">Contract</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="job-salary">Salary</label>
+              <input type="text" id="job-salary" maxlength="100" placeholder="e.g., $28 / hour">
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="job-description">Description *</label>
+            <textarea id="job-description" rows="4" maxlength="5000" required placeholder="Describe responsibilities and team role..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label for="job-requirements">Requirements (one per line)</label>
+            <textarea id="job-requirements" rows="3" maxlength="5000" placeholder="e.g., Experience with Node.js and SQL"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="save-job-btn" class="btn btn-primary">Publish Posting</button>
+            <button type="button" id="cancel-edit-btn" class="btn btn-secondary hidden">Cancel Edit</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Right Column: Postings List & Applicant Review -->
+      <section class="postings-section">
+        <div class="card">
+          <div class="section-header">
+            <h2>My Job Postings</h2>
+            <div class="filter-tabs">
+              <label for="posting-state-filter">Show:</label>
+              <select id="posting-state-filter">
+                <option value="">All Postings</option>
+                <option value="open">Open Only</option>
+                <option value="archived">Archived Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="postings-list" class="postings-list">
+            <p class="muted-text">Loading your job postings...</p>
+          </div>
+        </div>
+
+        <!-- Applicant Review Panel (shown when a posting is selected) -->
+        <div id="applications-panel" class="card applications-panel hidden">
+          <div class="section-header">
+            <div>
+              <h2 id="selected-job-heading">Applications Received</h2>
+              <p id="selected-job-meta" class="muted-text"></p>
+            </div>
+            <button type="button" id="close-applications-btn" class="btn btn-secondary btn-sm">Close</button>
+          </div>
+
+          <form id="applicant-filter-form" class="applicant-filters">
+            <div class="field-group">
+              <label for="filter-status">Status</label>
+              <select id="filter-status">
+                <option value="">All Statuses</option>
+                <option value="Applied">Applied</option>
+                <option value="Under Review">Under Review</option>
+                <option value="Interview">Interview</option>
+                <option value="Offered">Offered</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="filter-from-date">From Date</label>
+              <input type="date" id="filter-from-date">
+            </div>
+
+            <div class="field-group">
+              <label for="filter-to-date">To Date</label>
+              <input type="date" id="filter-to-date">
+            </div>
+
+            <div class="filter-buttons">
+              <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+              <button type="button" id="clear-filters-btn" class="btn btn-secondary btn-sm">Reset</button>
+            </div>
+          </form>
+
+          <div id="applications-list" class="applications-list"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/recruiter.js"></script>
+</body>
+</html>

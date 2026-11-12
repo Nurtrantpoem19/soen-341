@@ -11,6 +11,7 @@ const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
 const { registerApplicationAnalytics } = require('./routes/application-analytics');
+const { registerRecruiterRoutes } = require('./routes/recruiters');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -235,10 +236,6 @@ function createApp(pool, { demoAuth = false } = {}) {
     }
   });
 
-  // User login
-  app.post('/api/auth/login', async (req, res, next) => {
-    // ... login logic ...
-  });
 
   // User logout (Issue #35)
   app.post('/api/auth/logout', authenticateUser, async (req, res, next) => {
@@ -251,10 +248,10 @@ function createApp(pool, { demoAuth = false } = {}) {
     }
   });
 
-  // Verify the logged-in user using a JWT token
+  /* Verify the logged-in user using a JWT token
   function authenticateUser(req, res, next) {
   }
-
+*/
   // Verify the logged-in user using a JWT token
   function authenticateUser(req, res, next) {
     const authorization = req.get('Authorization');
@@ -507,6 +504,7 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   registerJobRoutes(app, pool);
   registerApplicationAnalytics(app, pool, authenticateUser);
+  registerRecruiterRoutes(app, pool, authenticateUser);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
