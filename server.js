@@ -136,8 +136,18 @@ function validateApplication(body) {
 
 function createApp(pool, { demoAuth = false } = {}) {
   const app = express();
-  app.use('/api/auth/register', cors());
-  app.use('/api/jobs', cors());
+  const allowedOrigins = new Set([
+    'http://localhost:5500',
+    ...(process.env.CORS_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean)
+  ]);
+  app.use('/api', cors({
+    origin(origin, callback) {
+      callback(null, !origin || allowedOrigins.has(origin));
+    }
+  }));
   app.use(express.json({ limit: '32kb' }));
 
   app.get('/api/health', async (req, res) => {

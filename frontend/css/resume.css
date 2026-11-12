@@ -307,6 +307,14 @@ body {
     font-weight: 700;
 }
 
+.availability-label[data-state="success"] {
+    color: #23613b;
+}
+
+.availability-label[data-state="info"] {
+    color: #59414a;
+}
+
 .unavailable-panel p:last-child {
     margin: 0;
     color: #695b60;
@@ -331,6 +339,12 @@ body {
     border-top: 1px solid #eadfe2;
 }
 
+.resume-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
 .resume-list-details {
     min-width: 0;
 }
@@ -353,7 +367,8 @@ body {
     font-size: 12px;
 }
 
-.resume-download-button {
+.resume-download-button,
+.resume-replace-button {
     flex: 0 0 auto;
     padding: 8px 12px;
     color: #7a1f3d;
@@ -366,7 +381,14 @@ body {
     font-weight: 700;
 }
 
-.resume-download-button:disabled {
+.resume-download-button:hover:not(:disabled),
+.resume-replace-button:hover:not(:disabled) {
+    color: #4b0d1f;
+    background: #f7e9ed;
+}
+
+.resume-download-button:disabled,
+.resume-replace-button:disabled {
     cursor: wait;
     opacity: 0.6;
 }
@@ -410,6 +432,15 @@ body {
 
     .section-heading h2 {
         font-size: 17px;
+    }
+
+    .resume-list-item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .resume-actions {
+        flex-wrap: wrap;
     }
 }
 

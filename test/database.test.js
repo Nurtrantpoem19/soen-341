@@ -69,7 +69,7 @@ test('database migrations, constraints and API persistence', async t => {
     headers: { Origin: 'http://localhost:5500', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' }
   });
   assert.equal(preflight.status, 204);
-  assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'http://localhost:5500');
   async function request(path, method = 'GET', body, token) {
     const response = await fetch(base + path, {
       method,
