@@ -11,6 +11,8 @@ const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
 const { registerApplicationAnalytics } = require('./routes/application-analytics');
+const { registerNotificationRoutes } = require('./routes/notifications');
+const { createApplicationSubmissionNotifications } = require('./services/notifications');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -507,6 +509,7 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   registerJobRoutes(app, pool);
   registerApplicationAnalytics(app, pool, authenticateUser);
+  registerNotificationRoutes(app, pool, authenticateUser);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
@@ -514,21 +517,55 @@ function createApp(pool, { demoAuth = false } = {}) {
   app.post('/api/applications', authenticateUser, async (req, res, next) => {
     const values = validateApplication(req.body);
     if (!values) return res.status(400).json({ message: 'Provide a positive integer jobId and an optional coverLetter of at most 2000 characters.' });
+
+    let client;
+    let transactionOpen = false;
     try {
-      const result = await pool.query(
-        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter)
-         SELECT $1::integer, id, title, company, $3::text FROM jobs WHERE id=$2 AND is_open=TRUE
-         RETURNING ${applicationColumns}`,
-        [req.user.id, ...values]
+      client = await pool.connect();
+      await client.query('BEGIN');
+      transactionOpen = true;
+
+      const jobResult = await client.query(
+        `SELECT id, title, company, recruiter_id AS "recruiterId"
+         FROM jobs
+         WHERE id = $1 AND is_open = TRUE
+         FOR SHARE`,
+        [values[0]]
       );
-      if (!result.rowCount) return res.status(404).json({ message: 'Open job not found.' });
+      if (!jobResult.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Open job not found.' });
+      }
+
+      const job = jobResult.rows[0];
+      const result = await client.query(
+        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING ${applicationColumns}`,
+        [req.user.id, job.id, job.title, job.company, values[1]]
+      );
+      const application = result.rows[0];
+      await createApplicationSubmissionNotifications(client, application, job.recruiterId);
+      await client.query('COMMIT');
+      transactionOpen = false;
+
       res.status(201).json({
         message: 'Application submitted successfully.',
-        application: result.rows[0]
+        application
       });
     } catch (error) {
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          return next(rollbackError);
+        }
+      }
       if (error.code === '23505') return res.status(409).json({ message: 'You have already applied for this job.' });
       next(error);
+    } finally {
+      if (client) client.release();
     }
   });
 
