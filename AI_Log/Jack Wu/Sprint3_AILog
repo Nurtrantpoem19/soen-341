@@ -1,0 +1,47 @@
+## Entry: Profile Management, Validation, and Authentication Acceptance Testing
+- **Task ID/Title:** Profile Creation Test Suite & JWT Authorization Validation (`test/database.test.js`)
+- **Purpose of AI Use:** Test architecture, edge-case validation, and security assertion design.
+- **Prompt Summary:** 
+  "Help me design a comprehensive acceptance test suite in test/database.test.js covering secure JWT authentication protection, required-field and character-limit validation (400 Bad Request), successful trimmed profile persistence (201 Created), unique conflict handling (409 Conflict), and multi-user data isolation between separate accounts."
+- **AI Response:** 
+  Provided structured assertion blocks testing unauth rejection, input boundary checks across all profile attributes, multi-user isolation verifying User B cannot read User A's profile, and database persistence recovery checks.
+- **Validation:** Executed `npm test` locally to verify that all profile assertions pass successfully alongside the full 33-test suite (`pass 33, fail 0`).
+- **Decision:** Accepted and integrated directly into the test suite.
+- **Responsible Person:** Jack Wu
+
+# SOEN 341 — Sprint 3 Individual AI Usage Log
+**Student Name:** Jack Wu  
+**Sprint:** Sprint 3 (Fall 2026)  
+**Feature Assigned:** Feature 1 — Recruiter Dashboard and Posting Management, JWT Authentication Middleware, & Logout API  
+**AI Tool Used:** Google Gemini  
+
+---
+
+## 1. Objective & Scope of AI Usage
+During Sprint 3, I used Google Gemini to assist with:
+- Requirements analysis and security architecture.
+- Modular backend route design and implementation (`server.js`).
+- JWT authentication middleware (`authenticateUser`) and session logout handling (Issue #35).
+- Comprehensive integration and acceptance test suite expansion (`test/database.test.js`).
+
+All AI-generated code was manually reviewed, debugged, and validated using Node's automated test runner via `npm test`.
+
+---
+
+## 2. Prompts, Generated Outputs, Modifications & Validation
+
+### Interaction 1: JWT Authentication Middleware & Logout API (Issues #33 & #35)
+- **Prompt Summary:** 
+  "Help me implement the secure `authenticateUser` middleware in `server.js` using JSON Web Tokens (JWT) with strict `HS256` algorithm enforcement, checking for missing or malformed `Bearer` tokens, validating payload user IDs, and attaching `req.user`. Also, implement a protected `POST /api/auth/logout` endpoint (Issue #35) and write corresponding integration tests in `test/database.test.js`."
+- **AI Output:** 
+  Provided Express middleware implementing header parsing (`Bearer `), configuration checking (`JWT_SECRET`), signature/expiration verification via `jsonwebtoken`, safe integer payload validation, and `req.user` attachment. Provided the protected `/api/auth/logout` route handler and test assertions validating both unauthenticated rejections (`401`) and successful authenticated logouts (`200 OK`).
+- **Technical Review & Modification:** 
+  Verified that token payloads strictly check for safe integers and positive user IDs (`>= 1`), and ensured exact error messages matched test expectations (`Authentication required.`, `Invalid or expired authentication token.`, and `Logged out successfully.`).
+- **Validation:** Executed `npm test` locally to verify that all authentication, profile, and logout assertions pass successfully alongside the full test suite (`pass 33, fail 0`).
+
+---
+
+## 3. Summary of Final Engineering Decisions
+1. **Stateless Token Security:** Enforced strict `HS256` signature verification and expiration checks in `authenticateUser` to securely isolate protected routes.
+2. **Robust Error Handling:** Mapped missing tokens, malformed headers, invalid signatures, and unconfigured environments to precise HTTP status codes (`401 Unauthorized`, `503 Service Unavailable`).
+3. **Automated Test Coverage:** Expanded `test/database.test.js` to ensure rigorous validation of security barriers, input constraints, and user sessions.
