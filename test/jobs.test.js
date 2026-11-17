@@ -44,7 +44,9 @@ test('job search, filtering and job details', async t => {
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   async function get(path) {
-    const response = await fetch(base + path);
+    const response = await fetch(base + path, {
+      headers: { Origin: 'http://localhost:5500' }
+    });
     return { status: response.status, headers: response.headers, body: await response.json() };
   }
   const ids = body => body.jobs.map(job => job.id).sort((a, b) => a - b);
@@ -54,7 +56,7 @@ test('job search, filtering and job details', async t => {
   assert.equal(all.status, 200);
   assert.ok(all.body.jobs.length >= 2);
   assert.ok(!all.body.jobs.some(job => job.id === closedId));
-  assert.equal(all.headers.get('access-control-allow-origin'), '*');
+  assert.equal(all.headers.get('access-control-allow-origin'), 'http://localhost:5500');
   const listed = all.body.jobs.find(job => job.id === internId);
   assert.equal(listed.employmentType, 'Internship');
   assert.equal(listed.requirements, undefined);

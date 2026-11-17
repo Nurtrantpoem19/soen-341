@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 const { migrate } = require('../db/migrate');
 const db = require('../db/sprint3');
 
-// PostgreSQL-specific queries (locking, JSON aggregation, date_trunc) need the
+// PostgreSQL-specific queries (JSON aggregation, date_trunc) need the
 // real engine. CI supplies TEST_DATABASE_URL. Every case has an isolated schema.
 async function fixture(t) {
   const url = process.env.TEST_DATABASE_URL;
@@ -18,7 +18,9 @@ async function fixture(t) {
   });
   await migrate(pool);
   await migrate(pool);
-  assert.equal((await pool.query('SELECT * FROM schema_migrations')).rowCount, 4);
+  assert.equal((await pool.query("SELECT * FROM schema_migrations WHERE name='006_application_query_indexes.sql'")).rowCount, 1);
+  const indexes = await pool.query("SELECT indexname FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN ('applications_job_status_date_idx','applications_user_status_idx','applications_user_date_idx')");
+  assert.equal(indexes.rowCount, 3);
   const people = (await pool.query(`INSERT INTO users(email,password_hash) VALUES
     ('candidate@test.com','test'),('recruiter@test.com','test'),('other@test.com','test') RETURNING id`)).rows.map(r => r.id);
   const [candidate, recruiter, other] = people;
@@ -32,36 +34,22 @@ async function fixture(t) {
 }
 const options = { skip: !process.env.TEST_DATABASE_URL && 'Set TEST_DATABASE_URL to run real PostgreSQL tests' };
 
-test('posting lifecycle and applicant filters are scoped to the owner', options, async t => {
+test('applicant filters use existing jobs and stay scoped to the owner', options, async t => {
   const { pool, candidate, recruiter, other, job, apply } = await fixture(t);
   await apply();
-  assert.equal(await db.setPostingState(pool, other, job, 'archived'), null);
-  assert.equal((await db.setPostingState(pool, recruiter, job, 'draft')).is_open, false);
-  assert.equal((await db.setPostingState(pool, recruiter, job, 'active')).is_open, true);
-  assert.ok((await db.setPostingState(pool, recruiter, job, 'archived')).archived_at);
-  assert.equal((await db.setPostingState(pool, recruiter, job, 'active')).archived_at, null);
-  await assert.rejects(pool.query('UPDATE jobs SET is_draft=TRUE,is_open=TRUE WHERE id=$1', [job]), { code: '23514' });
   assert.equal((await db.listRecruiterApplications(pool, other, job)).length, 0);
   assert.equal((await db.listRecruiterApplications(pool, recruiter, job, { status: 'Applied', from: '2026-11-01', to: '2026-11-02' }))[0].user_id, candidate);
   assert.equal((await db.listRecruiterApplications(pool, recruiter, job, { status: 'Rejected' })).length, 0);
+  assert.equal((await db.listRecruiterApplications(pool, recruiter, job, { from: '2026-11-02', to: '2026-11-03' })).length, 0);
 });
 
-test('notifications deduplicate, respect due times and protect read state', options, async t => {
-  const { pool, candidate, other, job } = await fixture(t);
-  const input = { userId: candidate, eventType: 'deadline_reminder', message: 'Deadline approaching', jobId: job, deduplicationKey: 'deadline-1' };
-  const n = await db.createNotification(pool, input);
-  assert.equal(await db.createNotification(pool, input), null);
-  await db.createNotification(pool, { ...input, deduplicationKey: 'future', scheduledFor: '2099-01-01' });
-  assert.equal((await db.listNotifications(pool, candidate)).length, 1);
-  assert.equal(await db.unreadCount(pool, candidate), 1);
-  assert.equal(await db.setNotificationRead(pool, other, n.id), null);
-  assert.ok((await db.setNotificationRead(pool, candidate, n.id)).read_at);
-  assert.equal(await db.unreadCount(pool, candidate), 0);
-  await db.setNotificationRead(pool, candidate, n.id, false);
-  assert.equal(await db.unreadCount(pool, candidate), 1);
-  assert.deepEqual(await db.listNotifications(pool, other), []);
-  await assert.rejects(db.createNotification(pool, { ...input, eventType: 'bad' }), TypeError);
-  await assert.rejects(db.listNotifications(pool, candidate, { limit: 1000 }), TypeError);
+test('existing notification service works with the complete migration set', options, async t => {
+  const { createNotification } = require('../services/notifications');
+  const { pool, candidate, job } = await fixture(t);
+  const input = { userId: candidate, type: 'deadline_reminder', title: 'Reminder', message: 'Deadline approaching', jobId: job, dedupeKey: 'deadline-1' };
+  const n = await createNotification(pool, input);
+  assert.equal(n.userId, candidate);
+  assert.equal(await createNotification(pool, input), null);
   await pool.query('DELETE FROM users WHERE id=$1', [candidate]);
   assert.equal((await pool.query('SELECT * FROM notifications WHERE user_id=$1', [candidate])).rowCount, 0);
 });
@@ -81,8 +69,8 @@ test('candidate analytics count only owned records within UTC date bounds', opti
 test('recruiter dashboard counts only owned postings and applications', options, async t => {
   const { pool, recruiter, other, job, apply } = await fixture(t);
   await apply();
-  assert.deepEqual(await db.recruiterSummary(pool, recruiter), { active: 1, draft: 0, archived: 0, applications: 1, awaitingReview: 1 });
-  assert.deepEqual(await db.recruiterSummary(pool, other), { active: 0, draft: 0, archived: 0, applications: 0, awaitingReview: 0 });
-  await db.setPostingState(pool, recruiter, job, 'archived');
+  assert.deepEqual(await db.recruiterSummary(pool, recruiter), { active: 1, archived: 0, applications: 1, awaitingReview: 1 });
+  assert.deepEqual(await db.recruiterSummary(pool, other), { active: 0, archived: 0, applications: 0, awaitingReview: 0 });
+  await pool.query('UPDATE jobs SET is_open=FALSE WHERE id=$1', [job]);
   assert.equal((await db.recruiterSummary(pool, recruiter)).archived, 1);
 });

@@ -10,6 +10,12 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { createPool } = require('./db');
 const { registerJobRoutes } = require('./routes/jobs');
+const { registerApplicationAnalytics } = require('./routes/application-analytics');
+const { registerNotificationRoutes } = require('./routes/notifications');
+const { createApplicationSubmissionNotifications } = require('./services/notifications');
+const { registerRecruiterRoutes } = require('./routes/recruiters');
+const { registerResumeFeedbackRoutes } = require('./routes/resume-feedback');
+const { createResumeFeedbackService } = require('./services/resume-feedback');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -124,19 +130,28 @@ function validateProfile(body) {
 
 function validateApplication(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (typeof body.jobId !== 'number' && (typeof body.jobId !== 'string' || !/^\d+$/.test(body.jobId))) return null;
   const jobId = Number(body.jobId);
   if (!Number.isSafeInteger(jobId) || jobId < 1 || jobId > 2147483647) return null;
-  if (typeof body.jobTitle !== 'string' || !body.jobTitle.trim() || body.jobTitle.trim().length > 200) return null;
-  if (typeof body.company !== 'string' || !body.company.trim() || body.company.trim().length > 200) return null;
   const coverLetter = body.coverLetter === undefined ? '' : body.coverLetter;
   if (typeof coverLetter !== 'string' || coverLetter.length > 2000) return null;
-  return [jobId, body.jobTitle.trim(), body.company.trim(), coverLetter.trim()];
+  return [jobId, coverLetter.trim()];
 }
 
-function createApp(pool, { demoAuth = false } = {}) {
+function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedbackService() } = {}) {
   const app = express();
-  app.use('/api/auth/register', cors());
-  app.use('/api/jobs', cors());
+  const allowedOrigins = new Set([
+    'http://localhost:5500',
+    ...(process.env.CORS_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean)
+  ]);
+  app.use('/api', cors({
+    origin(origin, callback) {
+      callback(null, !origin || allowedOrigins.has(origin));
+    }
+  }));
   app.use(express.json({ limit: '32kb' }));
 
   app.get('/api/health', async (req, res) => {
@@ -146,12 +161,15 @@ function createApp(pool, { demoAuth = false } = {}) {
 
   app.post('/api/auth/register', async (req, res, next) => {
     const { email, password } = req.body || {};
+    // Optional account type (Sprint 3). Accounts are job seekers unless they register as a recruiter.
+    const role = req.body && req.body.role !== undefined ? req.body.role : 'job_seeker';
+    if (!['job_seeker', 'recruiter'].includes(role)) return res.status(400).json({ message: 'role must be job_seeker or recruiter.' });
     if (typeof email !== 'string' || email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password) > 72) {
       return res.status(400).json({ message: 'Provide a valid email and a password of at least 8 characters and at most 72 UTF-8 bytes.' });
     }
     try {
       const hash = await bcrypt.hash(password, 10);
-      const result = await pool.query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email', [email.trim().toLowerCase(), hash]);
+      const result = await pool.query('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role', [email.trim().toLowerCase(), hash, role]);
       res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'User with this email already exists.' });
@@ -174,7 +192,7 @@ function createApp(pool, { demoAuth = false } = {}) {
 
     try {
       const result = await pool.query(
-        'SELECT id, email, password_hash FROM users WHERE email = $1',
+        'SELECT id, email, role, password_hash FROM users WHERE email = $1',
         [email.trim().toLowerCase()]
       );
 
@@ -216,7 +234,8 @@ function createApp(pool, { demoAuth = false } = {}) {
         token,
         user: {
           id: user.id,
-          email: user.email
+          email: user.email,
+          role: user.role
         }
       });
 
@@ -496,25 +515,66 @@ function createApp(pool, { demoAuth = false } = {}) {
   });
 
   registerJobRoutes(app, pool);
+  registerApplicationAnalytics(app, pool, authenticateUser);
+  registerNotificationRoutes(app, pool, authenticateUser);
+  registerRecruiterRoutes(app, pool, authenticateUser);
+  registerResumeFeedbackRoutes(app, pool, authenticateUser, resumeFeedback);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
   // 1. Submit a new job application and return confirmation
   app.post('/api/applications', authenticateUser, async (req, res, next) => {
     const values = validateApplication(req.body);
-    if (!values) return res.status(400).json({ message: 'Provide a valid jobId, jobTitle, and company.' });
+    if (!values) return res.status(400).json({ message: 'Provide a positive integer jobId and an optional coverLetter of at most 2000 characters.' });
+
+    let client;
+    let transactionOpen = false;
     try {
-      const result = await pool.query(
-        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter) VALUES ($1,$2,$3,$4,$5) RETURNING ${applicationColumns}`,
-        [req.user.id, ...values]
+      client = await pool.connect();
+      await client.query('BEGIN');
+      transactionOpen = true;
+
+      const jobResult = await client.query(
+        `SELECT id, title, company, recruiter_id AS "recruiterId"
+         FROM jobs
+         WHERE id = $1 AND is_open = TRUE
+         FOR SHARE`,
+        [values[0]]
       );
+      if (!jobResult.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Open job not found.' });
+      }
+
+      const job = jobResult.rows[0];
+      const result = await client.query(
+        `INSERT INTO applications (user_id, job_id, job_title, company, cover_letter)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING ${applicationColumns}`,
+        [req.user.id, job.id, job.title, job.company, values[1]]
+      );
+      const application = result.rows[0];
+      await createApplicationSubmissionNotifications(client, application, job.recruiterId);
+      await client.query('COMMIT');
+      transactionOpen = false;
+
       res.status(201).json({
         message: 'Application submitted successfully.',
-        application: result.rows[0]
+        application
       });
     } catch (error) {
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          return next(rollbackError);
+        }
+      }
       if (error.code === '23505') return res.status(409).json({ message: 'You have already applied for this job.' });
       next(error);
+    } finally {
+      if (client) client.release();
     }
   });
 

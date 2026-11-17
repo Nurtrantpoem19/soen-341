@@ -1,40 +1,52 @@
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const PDF_MIME_TYPE = "application/pdf";
+const RESUME_API_URL = "http://localhost:3000/api/resumes";
+const TOKEN_KEY = "careerconnect_token";
 
 const resumeForm = document.getElementById("resume-form");
 const resumeInput = document.getElementById("resume-file");
+const replacementInput = document.getElementById("replacement-file");
 const fileDetails = document.getElementById("file-details");
 const fileName = document.getElementById("file-name");
 const fileSize = document.getElementById("file-size");
 const removeFileButton = document.getElementById("remove-file");
 const uploadButton = document.getElementById("upload-button");
 const uploadStatus = document.getElementById("upload-status");
-
-// These are proposed integration points, not routes currently implemented by the backend.
-// Suggested contract: GET /api/resumes/me returns { resume: { id, originalName, fileSize, mimeType, uploadedAt } } or { resume: null };
-// POST /api/resumes/me and PUT /api/resumes/me accept multipart field "file" (PDF) and return { resume: ... };
-// GET /api/resumes/me/file returns the PDF with Content-Type and Content-Disposition headers;
-// DELETE /api/resumes/me returns 204. Each request must authenticate/authorize the current user
-// and enforce file type and size limits on the server.
-const resumeApi = {
-    async getResume() {
-        throw new Error("Resume management is not connected to the backend yet.");
-    },
-    async uploadResume(file) {
-        void file;
-        throw new Error("Resume uploads will be available once the backend is connected.");
-    },
-    async downloadResume() {
-        throw new Error("Resume downloads will be available once the backend is connected.");
-    },
-    async deleteResume() {
-        throw new Error("Resume deletion will be available once the backend is connected.");
-    }
-};
+const resumeList = document.getElementById("resume-list");
+const resumeListStatus = document.getElementById("resume-list-status");
+let pendingReplacementButton = null;
 
 function showStatus(message, state = "error") {
     uploadStatus.textContent = message;
     uploadStatus.dataset.state = state;
+}
+
+function showResumeListStatus(message, state = "error") {
+    resumeListStatus.textContent = message;
+    resumeListStatus.dataset.state = state;
+}
+
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+}
+
+async function getResponseData(response) {
+    return response.json();
+}
+
+async function handleUnauthorized(response) {
+    if (response.status !== 401) {
+        return;
+    }
+
+    sessionStorage.removeItem(TOKEN_KEY);
+    throw new Error("Your session has expired. Please log in again.");
+}
+
+async function getErrorMessage(response, fallback) {
+    await handleUnauthorized(response);
+    const data = await getResponseData(response);
+    return data.message || fallback;
 }
 
 function formatFileSize(bytes) {
@@ -63,6 +75,222 @@ function validateFile(file) {
     }
 
     return "";
+}
+
+function renderResumes(resumes) {
+    resumeList.replaceChildren();
+
+    if (resumes.length === 0) {
+        showResumeListStatus("You have not uploaded a resume yet.");
+        return;
+    }
+
+    showResumeListStatus("");
+    resumes.forEach(function (resume) {
+        const item = document.createElement("li");
+        item.className = "resume-list-item";
+
+        const details = document.createElement("div");
+        details.className = "resume-list-details";
+
+        const name = document.createElement("p");
+        name.className = "resume-list-name";
+        name.textContent = resume.original_name;
+
+        const metadata = document.createElement("p");
+        metadata.className = "resume-list-metadata";
+        metadata.textContent = formatFileSize(resume.file_size);
+        if (resume.uploaded_at) {
+            const uploadedAt = new Date(resume.uploaded_at);
+            if (!Number.isNaN(uploadedAt.getTime())) {
+                metadata.textContent += ` · Uploaded ${uploadedAt.toLocaleDateString()}`;
+            }
+        }
+
+        details.append(name, metadata);
+
+        const downloadButton = document.createElement("button");
+        downloadButton.className = "resume-download-button";
+        downloadButton.type = "button";
+        downloadButton.textContent = "Download";
+        downloadButton.addEventListener("click", function () {
+            downloadResume(resume, downloadButton);
+        });
+
+        const replaceButton = document.createElement("button");
+        replaceButton.className = "resume-replace-button";
+        replaceButton.type = "button";
+        replaceButton.textContent = "Replace";
+        replaceButton.addEventListener("click", function () {
+            selectReplacementResume(resume, replaceButton);
+        });
+
+        const actions = document.createElement("div");
+        actions.className = "resume-actions";
+        actions.append(downloadButton, replaceButton);
+
+        item.append(details, actions);
+        resumeList.append(item);
+    });
+}
+
+async function loadResumes() {
+    if (!getToken()) {
+        showResumeListStatus("Please log in to view your saved resumes.");
+        return;
+    }
+
+    try {
+        const response = await fetch(RESUME_API_URL, {
+            headers: {
+                Authorization: `Bearer ${getToken()}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response, "Unable to load your resumes."));
+        }
+
+        const data = await getResponseData(response);
+        if (!Array.isArray(data.resumes)) {
+            throw new Error("The server returned an invalid resume list.");
+        }
+        renderResumes(data.resumes);
+        // Lets the AI feedback panel (resume-feedback.js) offer the same resumes.
+        document.dispatchEvent(new CustomEvent("resumes:loaded", { detail: data.resumes }));
+        return true;
+    } catch (error) {
+        showResumeListStatus(error.message || "Unable to connect to the server. Please try again.");
+        return false;
+    }
+}
+
+async function uploadResume(file) {
+    const token = getToken();
+    if (!token) {
+        throw new Error("Please log in before uploading a resume.");
+    }
+
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    const response = await fetch(RESUME_API_URL, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        body: formData
+    });
+
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response, "Your resume could not be uploaded."));
+    }
+
+    await getResponseData(response);
+}
+
+async function downloadResume(resume, button) {
+    const token = getToken();
+    if (!token) {
+        showResumeListStatus("Please log in before downloading a resume.");
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Downloading...";
+
+    try {
+        const response = await fetch(`${RESUME_API_URL}/${encodeURIComponent(resume.id)}/download`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response, "Unable to download your resume."));
+        }
+
+        const fileUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = resume.original_name;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        window.setTimeout(function () {
+            URL.revokeObjectURL(fileUrl);
+        }, 1000);
+        showResumeListStatus("");
+    } catch (error) {
+        showResumeListStatus(error.message || "Unable to download your resume. Please try again.");
+    } finally {
+        button.textContent = "Download";
+        button.disabled = false;
+    }
+}
+
+function selectReplacementResume(resume, button) {
+    if (!getToken()) {
+        showResumeListStatus("Please log in before replacing a resume.");
+        return;
+    }
+
+    replacementInput.dataset.resumeId = resume.id;
+    replacementInput.dataset.resumeName = resume.original_name;
+    pendingReplacementButton = button;
+    replacementInput.value = "";
+    replacementInput.click();
+}
+
+function clearPendingReplacement() {
+    pendingReplacementButton = null;
+    delete replacementInput.dataset.resumeId;
+    delete replacementInput.dataset.resumeName;
+}
+
+async function replaceResume(resumeId, resumeName, file, button) {
+    const token = getToken();
+    if (!token) {
+        showResumeListStatus("Please log in before replacing a resume.");
+        return;
+    }
+
+    if (!window.confirm(`Replace "${resumeName}" with "${file.name}"?`)) {
+        showResumeListStatus("Resume replacement canceled.", "info");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    button.disabled = true;
+    button.textContent = "Replacing...";
+    showResumeListStatus("Replacing your resume...", "info");
+
+    try {
+        const response = await fetch(`${RESUME_API_URL}/${encodeURIComponent(resumeId)}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response, "Your resume could not be replaced."));
+        }
+
+        await getResponseData(response);
+        if (await loadResumes()) {
+            showResumeListStatus("Your resume was replaced successfully.", "success");
+        }
+    } catch (error) {
+        showResumeListStatus(error.message || "Unable to replace your resume. Please try again.");
+    } finally {
+        button.textContent = "Replace";
+        button.disabled = false;
+        replacementInput.value = "";
+    }
 }
 
 function clearSelectedFile() {
@@ -102,6 +330,37 @@ removeFileButton.addEventListener("click", function () {
     resumeInput.focus();
 });
 
+replacementInput.addEventListener("change", async function () {
+    const file = replacementInput.files && replacementInput.files[0];
+    if (!file) {
+        clearPendingReplacement();
+        return;
+    }
+
+    const validationMessage = validateFile(file);
+    if (validationMessage) {
+        showResumeListStatus(validationMessage);
+        replacementInput.value = "";
+        clearPendingReplacement();
+        return;
+    }
+
+    const resumeId = replacementInput.dataset.resumeId;
+    const resumeName = replacementInput.dataset.resumeName;
+    const replaceButton = pendingReplacementButton;
+    clearPendingReplacement();
+    replacementInput.value = "";
+
+    if (!resumeId || !resumeName || !replaceButton || !replaceButton.isConnected) {
+        showResumeListStatus("Unable to identify the resume to replace. Refresh and try again.");
+        return;
+    }
+
+    await replaceResume(resumeId, resumeName, file, replaceButton);
+});
+
+replacementInput.addEventListener("cancel", clearPendingReplacement);
+
 resumeForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
@@ -118,13 +377,14 @@ resumeForm.addEventListener("submit", async function (event) {
     }
 
     uploadButton.disabled = true;
-    uploadButton.textContent = "Checking...";
-    showStatus("Checking upload availability...", "info");
+    uploadButton.textContent = "Uploading...";
+    showStatus("Uploading your resume...", "info");
 
     try {
-        await resumeApi.uploadResume(file);
+        await uploadResume(file);
         showStatus("Your resume was uploaded successfully.", "success");
         clearSelectedFile();
+        await loadResumes();
     } catch (error) {
         showStatus(error.message || "Your resume could not be uploaded. Please try again.");
     } finally {
@@ -132,3 +392,5 @@ resumeForm.addEventListener("submit", async function (event) {
         uploadButton.disabled = !resumeInput.files || resumeInput.files.length === 0;
     }
 });
+
+loadResumes();

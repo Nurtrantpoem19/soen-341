@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Manage job postings and review candidates on CareerConnect.">
+    <title>Recruiter Dashboard | CareerConnect</title>
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/jobs.css">
+    <link rel="stylesheet" href="css/recruiter.css">
+</head>
+
+<body>
+    <main class="jobs-page recruiter-page">
+        <p class="home-navigation"><a href="../index.html">← Back to Home</a></p>
+
+        <header class="page-heading">
+            <p class="eyebrow">CareerConnect</p>
+            <h1>Recruiter dashboard</h1>
+            <p class="page-intro">Create and manage your job postings, and review the candidates who applied.</p>
+        </header>
+
+        <p id="page-status" class="search-status" role="status" aria-live="polite" hidden></p>
+
+        <div id="dashboard" hidden>
+            <section aria-labelledby="postings-heading">
+                <div class="results-header">
+                    <h2 id="postings-heading">Your postings</h2>
+                    <button type="button" class="primary-button compact-button" id="new-posting">New posting</button>
+                </div>
+
+                <div class="tabs" role="group" aria-label="Show postings">
+                    <button type="button" class="tab" data-view="active" aria-pressed="true">Active <span id="active-count"></span></button>
+                    <button type="button" class="tab" data-view="archived" aria-pressed="false">Archived <span id="archived-count"></span></button>
+                </div>
+
+                <p id="postings-empty" class="search-status" hidden></p>
+                <ul id="posting-list" class="job-list"></ul>
+            </section>
+
+            <section id="applications-section" class="applications-section" aria-labelledby="applications-heading" hidden>
+                <div class="results-header">
+                    <h2 id="applications-heading" tabindex="-1">Applications</h2>
+                    <p id="applications-count" class="results-count" role="status" aria-live="polite"></p>
+                </div>
+                <p id="applications-job" class="applications-job"></p>
+
+                <form id="filter-form" class="search-form filter-form" novalidate>
+                    <div class="filter-row">
+                        <div>
+                            <label for="filter-status">Status</label>
+                            <select id="filter-status" name="status">
+                                <option value="">All statuses</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-from">Applied from</label>
+                            <input type="date" id="filter-from" name="from">
+                        </div>
+                        <div>
+                            <label for="filter-to">Applied until</label>
+                            <input type="date" id="filter-to" name="to">
+                        </div>
+                    </div>
+                    <div class="search-actions">
+                        <button type="submit">Apply filters</button>
+                        <button type="button" class="clear-filters" id="clear-filters">Clear filters</button>
+                    </div>
+                </form>
+
+                <p id="applications-status" class="search-status" hidden></p>
+                <ul id="application-list" class="job-list"></ul>
+            </section>
+        </div>
+    </main>
+
+    <dialog id="posting-dialog" class="posting-dialog" aria-labelledby="posting-dialog-title">
+        <form id="posting-form" class="posting-form" novalidate>
+            <h2 id="posting-dialog-title">New posting</h2>
+
+            <div>
+                <label for="posting-title">Job title</label>
+                <input type="text" id="posting-title" name="title" maxlength="200" required>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="posting-company">Company</label>
+                    <input type="text" id="posting-company" name="company" maxlength="200" required>
+                </div>
+                <div>
+                    <label for="posting-location">Location</label>
+                    <input type="text" id="posting-location" name="location" maxlength="200" placeholder="e.g. Montreal, QC or Remote" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="posting-category">Category</label>
+                    <input type="text" id="posting-category" name="category" maxlength="100" placeholder="e.g. Software Engineering" required>
+                </div>
+                <div>
+                    <label for="posting-type">Job type</label>
+                    <select id="posting-type" name="employmentType" required>
+                        <option>Full-time</option>
+                        <option>Part-time</option>
+                        <option>Internship</option>
+                        <option>Contract</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label for="posting-salary">Salary <span class="optional">(optional)</span></label>
+                <input type="text" id="posting-salary" name="salary" maxlength="100" placeholder="e.g. $70,000–$82,000 / year">
+            </div>
+            <div>
+                <label for="posting-description">Description</label>
+                <textarea id="posting-description" name="description" rows="5" maxlength="5000" required></textarea>
+            </div>
+            <div>
+                <label for="posting-requirements">Requirements <span class="optional">(optional, one per line)</span></label>
+                <textarea id="posting-requirements" name="requirements" rows="4" maxlength="5000"></textarea>
+            </div>
+
+            <p id="posting-error" class="form-error" role="alert"></p>
+
+            <div class="dialog-actions">
+                <button type="button" class="secondary-button" id="posting-cancel">Cancel</button>
+                <button type="submit" class="primary-button" id="posting-save">Save posting</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="js/recruiter.js"></script>
+</body>
+</html>

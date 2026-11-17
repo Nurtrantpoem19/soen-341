@@ -9,6 +9,7 @@
     >
     <title>CareerConnect | Your career, connected</title>
     <link rel="stylesheet" href="frontend/css/home.css">
+    <link rel="stylesheet" href="frontend/css/notifications.css">
 </head>
 
 <body>
@@ -33,14 +34,14 @@
                 </svg>
                 <span class="sidebar-link-label">Home</span>
             </a>
-            <a class="sidebar-link" href="frontend/login.html" title="Login">
+            <a class="sidebar-link" href="frontend/login.html" title="Login" data-auth-state="guest">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M10 17l5-5-5-5M15 12H3"></path>
                     <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"></path>
                 </svg>
                 <span class="sidebar-link-label">Login</span>
             </a>
-            <a class="sidebar-link" href="frontend/register.html" title="Register">
+            <a class="sidebar-link" href="frontend/register.html" title="Register" data-auth-state="guest">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9.5" cy="7" r="4"></circle>
@@ -48,13 +49,20 @@
                 </svg>
                 <span class="sidebar-link-label">Register</span>
             </a>
-            <a class="sidebar-link" href="frontend/profile.html" title="My Profile">
+            <a class="sidebar-link" href="frontend/profile.html" title="My Profile" data-auth-state="authenticated" hidden>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="8" r="4"></circle>
                     <path d="M4 21a8 8 0 0 1 16 0"></path>
                 </svg>
                 <span class="sidebar-link-label">My Profile</span>
             </a>
+            <button class="sidebar-link sidebar-logout" type="button" title="Logout" data-auth-state="authenticated" data-logout hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10 17l5-5-5-5M15 12H3"></path>
+                    <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"></path>
+                </svg>
+                <span class="sidebar-link-label">Logout</span>
+            </button>
             <a class="sidebar-link" href="frontend/resume.html" title="My Resume">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -68,6 +76,13 @@
                     <path d="m20 20-4-4M11 8v6M8 11h6"></path>
                 </svg>
                 <span class="sidebar-link-label">Job Search</span>
+            </a>
+            <a class="sidebar-link" href="frontend/recruiter.html" title="Recruiter Dashboard" data-role="recruiter" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="7" width="18" height="13" rx="2"></rect>
+                    <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"></path>
+                </svg>
+                <span class="sidebar-link-label">Recruiter Dashboard</span>
             </a>
             <div class="sidebar-link sidebar-link-coming" title="My Applications — Coming soon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -106,8 +121,71 @@
                 <span>CareerConnect</span>
             </a>
             <nav class="main-nav" aria-label="Account navigation">
-                <a href="frontend/login.html">Login</a>
-                <a class="nav-cta" href="frontend/register.html">Create account</a>
+                <a href="frontend/login.html" data-auth-state="guest">Login</a>
+                <a class="nav-cta" href="frontend/register.html" data-auth-state="guest">Create account</a>
+                <a href="frontend/profile.html" data-auth-state="authenticated" hidden>My Profile</a>
+                <div
+                    class="notification-center"
+                    id="notification-center"
+                    data-auth-state="authenticated"
+                    hidden
+                >
+                    <button
+                        class="notification-bell"
+                        id="notification-bell"
+                        type="button"
+                        aria-label="Notifications"
+                        aria-expanded="false"
+                        aria-controls="notification-panel"
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path>
+                        </svg>
+                        <span
+                            class="notification-badge"
+                            id="notification-badge"
+                            aria-hidden="true"
+                            hidden
+                        ></span>
+                    </button>
+                    <section
+                        class="notification-panel"
+                        id="notification-panel"
+                        aria-labelledby="notification-heading"
+                        hidden
+                    >
+                        <header class="notification-panel-header">
+                            <h2 id="notification-heading">Notifications</h2>
+                            <button
+                                class="notification-close"
+                                id="notification-close"
+                                type="button"
+                                aria-label="Close notifications"
+                            >×</button>
+                        </header>
+                        <div class="notification-panel-actions">
+                            <button id="mark-all-read" type="button">Mark all as read</button>
+                        </div>
+                        <p
+                            class="notification-status"
+                            id="notification-status"
+                            role="status"
+                            aria-live="polite"
+                        ></p>
+                        <button
+                            class="notification-retry"
+                            id="notification-retry"
+                            type="button"
+                            hidden
+                        >Try again</button>
+                        <ul
+                            class="notification-list"
+                            id="notification-list"
+                            aria-label="Your notifications"
+                        ></ul>
+                    </section>
+                </div>
+                <button class="nav-logout" type="button" data-auth-state="authenticated" data-logout hidden>Logout</button>
             </nav>
         </header>
 
@@ -120,9 +198,13 @@
                         CareerConnect is being built to bring your career profile, resume,
                         and job search into one place.
                     </p>
-                    <div class="hero-actions">
+                    <div class="hero-actions" data-auth-state="guest">
                         <a class="button button-light" href="frontend/register.html">Create an account</a>
                         <a class="button button-outline" href="frontend/login.html">Log in</a>
+                    </div>
+                    <div class="hero-actions" data-auth-state="authenticated" hidden>
+                        <a class="button button-light" href="frontend/profile.html">My Profile</a>
+                        <a class="button button-outline" href="frontend/resume.html">Manage resume</a>
                     </div>
                     <p class="hero-note">
                         Some features are still in development and may require backend support.
@@ -153,16 +235,16 @@
                 </div>
 
                 <div class="destination-grid">
-                    <a class="destination-card" href="frontend/login.html">
+                    <a class="destination-card" href="frontend/login.html" data-auth-state="guest">
                         <span class="destination-number">01</span>
                         <span class="destination-title">Login</span>
                         <span class="destination-description">
-                            Open the login page. Authentication integration is still in progress.
+                            Sign in to access your CareerConnect account.
                         </span>
                         <span class="destination-link">Go to login <span aria-hidden="true">→</span></span>
                     </a>
 
-                    <a class="destination-card" href="frontend/register.html">
+                    <a class="destination-card" href="frontend/register.html" data-auth-state="guest">
                         <span class="destination-number">02</span>
                         <span class="destination-title">Registration</span>
                         <span class="destination-description">
@@ -175,7 +257,7 @@
                         <span class="destination-number">03</span>
                         <span class="destination-title">Profile</span>
                         <span class="destination-description">
-                            Open your profile page. It currently uses the project's demo-user setup.
+                            Review and update your saved profile details.
                         </span>
                         <span class="destination-link">View profile <span aria-hidden="true">→</span></span>
                     </a>
@@ -184,7 +266,7 @@
                         <span class="destination-number">04</span>
                         <span class="destination-title">Resume management</span>
                         <span class="destination-description">
-                            Open the resume page. Upload and saved-resume actions await backend support.
+                            Upload, view, or download resumes saved to your account.
                         </span>
                         <span class="destination-link">Manage resume <span aria-hidden="true">→</span></span>
                     </a>
@@ -210,5 +292,6 @@
         </footer>
     </div>
     <script src="frontend/js/home.js"></script>
+    <script src="frontend/js/notifications.js"></script>
 </body>
 </html>

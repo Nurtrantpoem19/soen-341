@@ -1,0 +1,292 @@
+/* Recruiter dashboard (Sprint 3). Builds on auth.css and jobs.css. */
+.recruiter-page [hidden] {
+    display: none;
+}
+
+.search-status a {
+    color: #7a1f3d;
+    font-weight: 700;
+}
+
+.compact-button {
+    width: auto;
+    padding: 10px 18px;
+    background: #4b0d1f;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.tab {
+    padding: 8px 16px;
+    color: rgba(255, 255, 255, 0.85);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.tab[aria-pressed="true"] {
+    color: #4b0d1f;
+    background: #fff;
+    border-color: #fff;
+    font-weight: 700;
+}
+
+.posting-card.selected {
+    border-left: 4px solid #7a1f3d;
+}
+
+.posting-card:hover,
+.application-card:hover {
+    transform: none;
+}
+
+.status-tag {
+    color: #7a1f3d;
+    background: #f7e9ed;
+    font-weight: 700;
+}
+
+.card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+}
+
+.link-button {
+    padding: 4px 0;
+    color: #7a1f3d;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link-button.strong {
+    font-weight: 700;
+}
+
+.link-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.posting-card .link-button:focus-visible,
+.application-card select:focus-visible {
+    outline: 3px solid #35101c;
+    outline-offset: 3px;
+}
+
+/* Applications */
+.applications-section {
+    margin-top: 48px;
+    padding-top: 36px;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.applications-section h2:focus {
+    outline: none;
+}
+
+.applications-job {
+    margin: -8px 0 24px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 15px;
+}
+
+.filter-form {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+}
+
+.filter-form input[type="date"] {
+    color-scheme: dark;
+}
+
+.application-card a.job-tag {
+    color: #7a1f3d;
+}
+
+.cover-letter {
+    margin: 0 0 16px;
+    color: #59414a;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+
+.cover-letter.muted {
+    color: #8b7d82;
+    font-style: italic;
+}
+
+.status-control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-label {
+    color: #73656a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
+.status-select {
+    padding: 8px 10px;
+    color: #35101c;
+    background: #fff;
+    border: 1px solid #c9b5bb;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 14px;
+}
+
+.status-feedback {
+    color: #73656a;
+    font-size: 12px;
+}
+
+/* Create / edit dialog */
+.posting-dialog {
+    width: min(92vw, 640px);
+    max-height: 90vh;
+    margin: auto;
+    padding: 0;
+    color: #35101c;
+    background: #fff;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 24px 60px rgba(39, 5, 17, 0.45);
+}
+
+.posting-dialog::backdrop {
+    background: rgba(39, 5, 17, 0.6);
+}
+
+.posting-form {
+    max-width: none;
+    padding: 28px;
+}
+
+.posting-form h2 {
+    margin-bottom: 22px;
+    font-size: 20px;
+}
+
+.posting-form > div,
+.posting-form .form-row > div {
+    margin-bottom: 18px;
+}
+
+.posting-form .form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+    margin-bottom: 0;
+}
+
+.posting-form label {
+    margin-bottom: 6px;
+    color: #59414a;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.posting-form .optional {
+    font-weight: normal;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.posting-form input,
+.posting-form select,
+.posting-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    color: #35101c;
+    background: #fff;
+    border: 1px solid #c9b5bb;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 15px;
+}
+
+.posting-form input::placeholder {
+    color: #8b7d82;
+}
+
+.posting-form textarea {
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.posting-form input:focus,
+.posting-form select:focus,
+.posting-form textarea:focus {
+    border: 1px solid #7a1f3d;
+    outline: 2px solid #f4c7d2;
+}
+
+.form-error {
+    min-height: 20px;
+    margin-bottom: 12px;
+    color: #8b1938;
+    font-size: 13px;
+}
+
+.posting-form .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+.posting-form .dialog-actions button {
+    width: auto;
+    margin: 0;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+}
+
+.posting-form .secondary-button {
+    color: #4b0d1f;
+    background: #fff;
+    border: 1px solid #c9b5bb;
+}
+
+.posting-form .secondary-button:hover {
+    background: #f7f2f3;
+}
+
+@media (max-width: 600px) {
+    .results-header {
+        flex-wrap: wrap;
+    }
+
+    .posting-form {
+        padding: 22px 18px;
+    }
+
+    .posting-form .form-row {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,33 +1,23 @@
 # Sprint 3 database work
 
-This change supports the Sprint 3 features in the brief and team plan. It does not implement backend routes or frontend screens.
+## Final scope after integration with main
 
-## Included
+- `006_application_query_indexes.sql` adds composite indexes for recruiter application status/date queries, candidate status counts, and candidate history.
+- `db/sprint3.js` provides parameterized, ownership-scoped reporting helpers: recruiter applicant filters, recruiter counts, candidate history and UTC application analytics.
+- `test/sprint3.test.js` checks ownership, date boundaries, summaries, migration reruns/index creation, and compatibility with the existing notification service.
 
-- `004_sprint3.sql`: persistent notifications with recipient, event type, message, related job/application, delivery time, read state and duplicate prevention.
-- Posting fields for draft/active/archive state and deadlines, keeping the existing `is_open` field compatible with job search.
-- Indexes for recruiter ownership, application status/date queries, candidate history and notification retrieval.
-- `db/sprint3.js`: parameterized database helpers for notification creation/listing/read state, posting state changes, recruiter applicant filters/counts, candidate history and status/time analytics.
-- PostgreSQL tests for ownership isolation, notification state/deduplication, lifecycle constraints, analytics, and migration reruns.
+The earlier unmerged `004_sprint3.sql` was replaced: main already owns notification storage (`004_notifications.sql`), recruiter roles (`004_recruiter.sql`) and AI feedback storage (`005_resume_feedback.sql`). The duplicate notification implementation and unused draft/archive/deadline fields were removed. Archiving follows the existing backend convention: `jobs.is_open=false`.
 
-## Integration notes
+## Integration
 
-Apply using the existing `npm run db:migrate`. Do not edit previously applied migrations. The migration preserves existing application records and their current relationships.
+Apply with `npm run db:migrate`. The migration runner tracks full filenames, including the two existing `004_` migrations. The new indexes preserve existing data and can run on both a fresh database and an existing main database.
 
-Backend developers can import the helpers from `db/sprint3.js`. Pass authenticated user IDs, not user IDs supplied by a client. Recruiter endpoints must check the recruiter's role; helpers additionally restrict reads/updates by posting ownership. `createNotification` is a trusted internal writer: its caller chooses and validates the recipient and related event.
+Reporting helpers are optional database utilities, not new API endpoints; existing routes continue using their current implementations. Pass IDs from authenticated server context. Recruiter routes must additionally enforce the recruiter role. Analytics accepts `{from,to,bucket}` using a half-open UTC range `[from,to)` and day/week/month buckets; empty buckets are omitted. Pagination defaults to 50, maximum 100.
 
-Posting states: draft (`is_draft=true`, `is_open=false`), active (`is_open=true`), archived (both false). Existing closed postings count as archived without inventing an archive date. Use `setPostingState` to keep fields consistent.
+Notifications continue using `services/notifications.js` and the team's existing routes and schema. This branch adds no notification scheduler or new frontend behavior.
 
-Notifications become visible at `scheduled_for`. A reminder scheduler and event triggers must be implemented by the backend team. A notification row does not schedule its own creation. Deduplication keys are unique per recipient; omitted keys allow repeated events.
+If the original unmerged database migration was already run locally, use a fresh development/test database or explicitly migrate its data to the team's schema before starting the combined app. This revision does not silently rewrite databases created from that unpublished schema.
 
-Analytics takes `{from, to, bucket}` with UTC ISO dates, a half-open interval `[from,to)`, and day/week/month buckets. It reports current status counts and submission trends; empty time buckets are omitted. Pagination defaults to 50 and is limited to 100.
+## Validation
 
-Existing jobs/applications tables already cover core data. No replacement application workflow, historical foreign-key repair, AI feedback tables, authentication changes, or new API endpoints are included. AI storage can be agreed with the AI developer if needed.
-
-## Testing
-
-Set `TEST_DATABASE_URL` to a dedicated PostgreSQL test database and run `npm test`. The test account needs schema-creation permission. The four Sprint 3 tests use isolated schemas and clean them up afterwards. The existing CI workflow already supplies PostgreSQL and runs them.
-
-Without a PostgreSQL URL, the existing pg-mem tests run and the four PostgreSQL-specific tests explicitly skip. They use real PostgreSQL because JSON aggregation/date grouping are not reliably covered by the emulator.
-
-Implementation and tests were AI-assisted at Aymane's request. Changes are submitted for team review before merging.
+Run `npm test` with `TEST_DATABASE_URL` pointing to a dedicated PostgreSQL test database. The four database tests use isolated schemas and clean up afterward. Without PostgreSQL they explicitly skip; the other tests use pg-mem. CI supplies PostgreSQL. Implementation, reconciliation, and tests were AI-assisted and remain subject to team review.
