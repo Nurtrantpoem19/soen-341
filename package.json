@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/Nurtrantpoem19/soen-341#readme",
   "dependencies": {
+    "@google/genai": "^3.3.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",

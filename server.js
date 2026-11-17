@@ -14,6 +14,8 @@ const { registerApplicationAnalytics } = require('./routes/application-analytics
 const { registerNotificationRoutes } = require('./routes/notifications');
 const { createApplicationSubmissionNotifications } = require('./services/notifications');
 const { registerRecruiterRoutes } = require('./routes/recruiters');
+const { registerResumeFeedbackRoutes } = require('./routes/resume-feedback');
+const { createResumeFeedbackService } = require('./services/resume-feedback');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -136,7 +138,7 @@ function validateApplication(body) {
   return [jobId, coverLetter.trim()];
 }
 
-function createApp(pool, { demoAuth = false } = {}) {
+function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedbackService() } = {}) {
   const app = express();
   const allowedOrigins = new Set([
     'http://localhost:5500',
@@ -516,6 +518,7 @@ function createApp(pool, { demoAuth = false } = {}) {
   registerApplicationAnalytics(app, pool, authenticateUser);
   registerNotificationRoutes(app, pool, authenticateUser);
   registerRecruiterRoutes(app, pool, authenticateUser);
+  registerResumeFeedbackRoutes(app, pool, authenticateUser, resumeFeedback);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 

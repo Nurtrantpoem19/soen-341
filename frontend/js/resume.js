@@ -156,6 +156,8 @@ async function loadResumes() {
             throw new Error("The server returned an invalid resume list.");
         }
         renderResumes(data.resumes);
+        // Lets the AI feedback panel (resume-feedback.js) offer the same resumes.
+        document.dispatchEvent(new CustomEvent("resumes:loaded", { detail: data.resumes }));
         return true;
     } catch (error) {
         showResumeListStatus(error.message || "Unable to connect to the server. Please try again.");

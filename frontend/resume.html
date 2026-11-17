@@ -7,6 +7,7 @@
     <title>Resume Management | CareerConnect</title>
     <link rel="stylesheet" href="css/auth.css">
     <link rel="stylesheet" href="css/resume.css">
+    <link rel="stylesheet" href="css/resume-feedback.css">
 </head>
 
 <body>
@@ -92,6 +93,58 @@
             </div>
         </section>
 
+        <section class="resume-card" id="feedback-card" aria-labelledby="feedback-heading">
+            <div class="section-heading">
+                <span class="section-icon" aria-hidden="true">03</span>
+                <div>
+                    <h2 id="feedback-heading">AI resume feedback</h2>
+                    <p>Get a score, strengths, gaps and formatting tips, optionally for a specific job.</p>
+                </div>
+            </div>
+
+            <form id="feedback-form" class="feedback-form" novalidate>
+                <div class="feedback-fields">
+                    <div>
+                        <label for="feedback-resume">Resume</label>
+                        <select id="feedback-resume" name="resume" disabled>
+                            <option value="">Upload a resume first</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="feedback-job">Target job <span class="optional">(optional)</span></label>
+                        <select id="feedback-job" name="jobId">
+                            <option value="">General review</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="feedback-disclosure">
+                    Your resume and the selected job are sent to Google Gemini to generate this review. This uses
+                    Gemini's free tier, so Google may use what is sent to improve its products: remove details you
+                    don't want to share, such as your phone number or address. AI feedback can be wrong, so use your own judgement.
+                </p>
+                <p id="feedback-status" class="status-message" role="status" aria-live="polite"></p>
+                <button class="primary-button" id="feedback-button" type="submit" disabled>Get AI feedback</button>
+            </form>
+
+            <div id="feedback-result" class="feedback-result" hidden>
+                <div class="feedback-score-row">
+                    <div class="score-badge" id="overall-score-badge">
+                        <span class="score-value" id="overall-score"></span>
+                        <span class="score-label">Resume score</span>
+                    </div>
+                    <div class="score-badge" id="match-score-badge" hidden>
+                        <span class="score-value" id="match-score"></span>
+                        <span class="score-label">Job match</span>
+                    </div>
+                    <div class="feedback-summary">
+                        <p id="feedback-meta" class="feedback-meta"></p>
+                        <p id="feedback-summary"></p>
+                    </div>
+                </div>
+                <div id="feedback-sections" class="feedback-sections"></div>
+            </div>
+        </section>
+
         <p class="privacy-note">
             Uploaded resumes are saved to your CareerConnect account. You can view and download
             them here, and replace a saved resume whenever it needs an update.
@@ -99,5 +152,6 @@
     </main>
 
     <script src="js/resume.js"></script>
+    <script src="js/resume-feedback.js"></script>
 </body>
 </html>

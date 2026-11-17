@@ -1,0 +1,198 @@
+/* AI resume feedback panel (Sprint 3). Builds on resume.css. */
+.feedback-form label {
+    display: block;
+    margin-bottom: 6px;
+    color: #59414a;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.feedback-form .optional {
+    font-weight: normal;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.feedback-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.feedback-form > .feedback-fields > div {
+    margin-bottom: 0;
+}
+
+.feedback-form select {
+    width: 100%;
+    padding: 10px 12px;
+    color: #35101c;
+    background: #fff;
+    border: 1px solid #c9b5bb;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 15px;
+}
+
+.feedback-form select:disabled {
+    color: #8b7d82;
+    background: #f7f2f3;
+}
+
+.feedback-form select:focus-visible {
+    outline: 3px solid #35101c;
+    outline-offset: 2px;
+}
+
+.feedback-disclosure {
+    margin: 0;
+    color: #73656a;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.feedback-form .primary-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.feedback-result {
+    margin-top: 26px;
+    padding-top: 24px;
+    border-top: 1px solid #f0e4e7;
+}
+
+.feedback-result[hidden],
+.score-badge[hidden] {
+    display: none;
+}
+
+.feedback-score-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.score-badge {
+    display: grid;
+    flex: 0 0 96px;
+    place-items: center;
+    padding: 14px 8px;
+    border-radius: 10px;
+    background: #f7e9ed;
+    color: #7a1f3d;
+    text-align: center;
+}
+
+.score-badge[data-level="high"] {
+    color: #1f5a35;
+    background: #e6f3ea;
+}
+
+.score-badge[data-level="low"] {
+    color: #8b1938;
+    background: #fbe4e8;
+}
+
+.score-value {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.score-value::after {
+    content: "/100";
+    margin-left: 2px;
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.75;
+}
+
+.score-label {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.feedback-summary {
+    flex: 1;
+    min-width: 0;
+}
+
+.feedback-meta {
+    margin: 0 0 6px;
+    color: #73656a;
+    font-size: 12px;
+}
+
+.feedback-summary p:last-child {
+    margin: 0;
+    color: #35101c;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.feedback-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.feedback-section {
+    padding: 16px 18px;
+    border: 1px solid #f0e4e7;
+    border-left: 4px solid #b76e79;
+    border-radius: 8px;
+}
+
+.feedback-section[data-kind="strengths"] {
+    border-left-color: #2f7d4a;
+}
+
+.feedback-section[data-kind="gaps"] {
+    border-left-color: #b3263e;
+}
+
+.feedback-section h3 {
+    margin: 0 0 10px;
+    color: #35101c;
+    font-size: 14px;
+}
+
+.feedback-section ul {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding-left: 18px;
+    color: #59414a;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.feedback-section li.empty {
+    color: #8b7d82;
+    font-style: italic;
+    list-style: none;
+    margin-left: -18px;
+}
+
+@media (max-width: 600px) {
+    .feedback-fields,
+    .feedback-sections {
+        grid-template-columns: 1fr;
+    }
+
+    .feedback-score-row {
+        flex-wrap: wrap;
+    }
+
+    .feedback-summary {
+        flex-basis: 100%;
+    }
+}

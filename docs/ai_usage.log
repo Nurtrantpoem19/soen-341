@@ -7,3 +7,11 @@ Break down user stories into specific tasks
 
 Task 3:
 Used AI to finalize workflow based on existing draft of workflow
+
+Sprint 3 — AI-Powered Resume Feedback (2026-11-17):
+Used Claude Code to choose the AI feature (resume feedback, as planned in sprint_3plan.md), write the tests first,
+implement the backend, prompt and UI, and draft docs/sprint_3/ai-resume-feedback.md. Validation: tests seen failing
+before the code existed, then 48/48 passing; UI checked in a browser with a fake AI service. Team review and a
+real-API trial are still pending. Details: AI_Log/Lounis Benhamouche/Sprint3_AI_Usage_Log.md.
+Same day: switched the provider from Claude to the Google Gemini free tier so the feature costs nothing; Gemini
+unit tests were rewritten first and seen failing (5/15), then 48/48 passing.
