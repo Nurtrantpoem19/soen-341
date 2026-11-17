@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My applications | CareerConnect</title>
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/jobs.css">
+    <link rel="stylesheet" href="css/applications.css">
+</head>
+<body>
+<main class="jobs-page">
+    <nav class="application-navigation" aria-label="Page navigation">
+        <a href="../index.html">Home & notifications</a><a href="jobs.html">Find jobs</a>
+    </nav>
+    <header class="page-heading">
+        <p class="eyebrow">CareerConnect</p><h1>My applications</h1>
+        <p class="page-intro">Follow your applications and see your progress.</p>
+    </header>
+    <p id="session-status" role="status" aria-live="polite"></p>
+    <a id="login-link" href="login.html" hidden>Log in to view your applications</a>
+    <div id="application-content" hidden>
+        <section class="detail-card" aria-labelledby="analytics-heading">
+            <div class="section-heading"><h2 id="analytics-heading">Application overview</h2></div>
+            <label for="bucket">Group applications by</label>
+            <select id="bucket"><option value="month">Month</option><option value="week">Week</option></select>
+            <p id="analytics-status" role="status" aria-live="polite"></p>
+            <div id="summary" class="application-summary"></div>
+            <div id="timeline"></div>
+            <p class="analytics-note">Counts include all your applications. Status counts show their current status. Weeks start on Monday; periods use UTC.</p>
+        </section>
+        <section aria-labelledby="history-heading">
+            <div class="results-header"><h2 id="history-heading">Application history</h2><button id="refresh" type="button">Refresh</button></div>
+            <label for="status-filter">Filter by status</label>
+            <select id="status-filter">
+                <option value="">All statuses</option><option>Applied</option><option>Under Review</option>
+                <option>Interview</option><option>Offered</option><option>Rejected</option>
+            </select>
+            <p id="history-status" class="search-status" role="status" aria-live="polite"></p>
+            <ul id="application-list" class="job-list"></ul>
+        </section>
+    </div>
+</main>
+<script src="js/application-api.js"></script>
+<script src="js/applications.js"></script>
+</body>
+</html>

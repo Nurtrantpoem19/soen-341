@@ -14,6 +14,7 @@
         <p class="home-navigation"><a href="../index.html">← Back to Home</a></p>
         <nav class="page-navigation" aria-label="Page navigation">
             <a id="back-to-search" href="jobs.html">Back to job search</a>
+            <a href="applications.html">My applications</a>
         </nav>
 
         <p id="details-status" class="search-status" role="status" aria-live="polite">Loading job details...</p>
@@ -71,11 +72,15 @@
                     </div>
                 </div>
                 <p id="apply-status" class="apply-status" role="status" aria-live="polite"></p>
+                <label for="cover-letter">Cover letter (optional, up to 2,000 characters)</label>
+                <textarea id="cover-letter" maxlength="2000" rows="5" style="display:block;width:100%;margin:12px 0;padding:12px;font:inherit"></textarea>
                 <button class="primary-button" id="apply-button" type="button">Apply for this job</button>
+                <p><a id="application-link" href="applications.html" hidden>View my applications</a></p>
             </section>
         </article>
     </main>
 
+    <script src="js/application-api.js"></script>
     <script src="js/job-details.js"></script>
 </body>
 </html>

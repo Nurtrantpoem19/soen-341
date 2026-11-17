@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { migrate } = require('../db/migrate');
 const { createApp } = require('../server');
-const { validateJob, readDate, summarizePostings } = require('../routes/recruiter');
+const { validateJob, readDate, summarizePostings } = require('../routes/recruiters');
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'recruiter-test-only-secret';
 
@@ -40,6 +40,34 @@ test('summarizePostings counts applications per posting and status', () => {
 });
 
 // Integration and acceptance tests: real routes against PostgreSQL (CI) or pg-mem (local).
+test('recruiter status notification failure rolls back and releases the transaction', async t => {
+  const commands = [];
+  const client = {
+    async query(sql) {
+      commands.push(sql);
+      if (sql.startsWith('SELECT a.*')) return { rowCount: 1, rows: [{ id: 1, user_id: 2, job_id: 3, job_title: 'Developer', company: 'Example', status: 'Applied' }] };
+      if (sql.startsWith('UPDATE applications')) return { rowCount: 1, rows: [{ id: 1, status: 'Interview' }] };
+      if (sql.startsWith('SELECT id FROM notifications')) return { rowCount: 0, rows: [] };
+      if (sql.includes('INSERT INTO notifications')) throw new Error('notification write failed');
+      return { rows: [], rowCount: 0 };
+    },
+    release() { commands.push('RELEASE'); }
+  };
+  const pool = { query: async () => ({ rowCount: 1, rows: [{ role: 'recruiter' }] }), connect: async () => client };
+  const server = createApp(pool).listen(0, '127.0.0.1');
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  await new Promise(resolve => server.once('listening', resolve));
+  const token = jwt.sign({ userId: 1 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/recruiter/applications/1/status`, {
+    method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ status: 'Interview' })
+  });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { message: 'Internal server error' });
+  assert.ok(commands.includes('ROLLBACK'));
+  assert.ok(!commands.includes('COMMIT'));
+  assert.equal(commands.at(-1), 'RELEASE');
+});
+
 test('recruiter dashboard and posting management', async t => {
   let pool;
   if (process.env.TEST_DATABASE_URL) {
@@ -209,6 +237,16 @@ test('recruiter dashboard and posting management', async t => {
     // The job seeker sees the recruiter's decision in their own history.
     const history = await request('GET', '/api/applications/me', { as: seeker });
     assert.equal(history.body.applications.find(row => row.id === applicationId).status, 'Rejected');
+    const alerts = await request('GET', '/api/notifications', { as: seeker });
+    const changes = alerts.body.notifications.filter(row => row.applicationId === applicationId && row.type === 'application_status');
+    assert.equal(changes.length, 4);
+    assert.ok(changes.some(row => row.message.includes('Rejected') && row.actorUserId === recruiter));
+    assert.equal((await request('GET', '/api/notifications', { as: secondSeeker })).body.notifications.filter(row => row.applicationId === applicationId).length, 0);
+    const analytics = await request('GET', '/api/applications/me/analytics', { as: seeker });
+    assert.equal(analytics.body.analytics.byStatus.Rejected, 1);
+    assert.equal((await update(applicationId, 'Rejected')).status, 200);
+    const afterRetry = await request('GET', '/api/notifications', { as: seeker });
+    assert.equal(afterRetry.body.notifications.filter(row => row.applicationId === applicationId && row.type === 'application_status').length, 4);
   });
 
   await t.test('acceptance: archiving hides a posting from job seekers and keeps its applications', async () => {
