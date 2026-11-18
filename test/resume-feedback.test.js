@@ -81,32 +81,6 @@ test('buildFeedbackRequest includes saved profile skills in a job match', () => 
   assert.match(text, /Node\.js, PostgreSQL/);
 });
 
-test('buildFeedbackRequest includes saved profile skills in a job match', () => {
-  const params = buildFeedbackRequest({
-    resume: { kind: 'text', text: 'Jane Doe\nJunior developer' },
-    job,
-    profile: { headline: 'Junior Backend Developer', location: 'Montreal, QC', skills: ['Node.js', 'PostgreSQL'] },
-    model: 'm'
-  });
-  const text = params.contents[0].parts.map(part => part.text).join('\n');
-  assert.match(text, /<profile>/);
-  assert.match(text, /Node\.js, PostgreSQL/);
-  assert.match(text, /Junior Backend Developer/);
-});
-
-test('buildFeedbackRequest includes saved profile skills in a job match', () => {
-  const params = buildFeedbackRequest({
-    resume: { kind: 'text', text: 'Jane Doe\nJunior developer' },
-    job,
-    profile: { headline: 'Junior Backend Developer', location: 'Montreal, QC', skills: ['Node.js', 'PostgreSQL'] },
-    model: 'm'
-  });
-  const text = params.contents[0].parts.map(part => part.text).join('\n');
-  assert.match(text, /<profile>/);
-  assert.match(text, /Node\.js, PostgreSQL/);
-  assert.match(text, /Junior Backend Developer/);
-});
-
 test('FEEDBACK_SCHEMA objects are closed and require every field', () => {
   for (const schema of Object.values(FEEDBACK_SCHEMA)) {
     assert.equal(schema.additionalProperties, false);
