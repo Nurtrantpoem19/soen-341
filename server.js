@@ -16,6 +16,7 @@ const { createApplicationSubmissionNotifications } = require('./services/notific
 const { registerRecruiterRoutes } = require('./routes/recruiters');
 const { registerResumeFeedbackRoutes } = require('./routes/resume-feedback');
 const { createResumeFeedbackService } = require('./services/resume-feedback');
+const { registerJobMatchRoutes } = require('./routes/job-matches');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -113,7 +114,7 @@ const uploadResume = multer({
 });
 
 const fields = { firstName: 100, lastName: 100, phone: 50, location: 200, headline: 200 };
-const columns = 'user_id AS "userId", first_name AS "firstName", last_name AS "lastName", phone, location, headline, summary';
+const columns = 'user_id AS "userId", first_name AS "firstName", last_name AS "lastName", phone, location, headline, summary, skills';
 
 const APPLICATION_STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
 const applicationColumns = 'id, user_id AS "userId", job_id AS "jobId", job_title AS "jobTitle", company, cover_letter AS "coverLetter", status, applied_at AS "appliedAt", updated_at AS "updatedAt"';
@@ -124,6 +125,20 @@ function validateProfile(body) {
   for (const [name, limit] of Object.entries(fields)) {
     if (typeof body[name] !== 'string' || !body[name].trim() || body[name].trim().length > limit) return null;
     values.push(body[name].trim());
+  }
+  if (body.skills !== undefined) {
+    if (!Array.isArray(body.skills) || body.skills.length > 30) return null;
+    const skills = body.skills.map(skill => typeof skill === 'string' ? skill.trim() : '');
+    if (skills.some(skill => !skill || skill.length > 50)) return null;
+    const seen = new Set();
+    values.push(skills.filter(skill => {
+      const key = skill.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }));
+  } else {
+    values.push([]);
   }
   return values;
 }
@@ -488,7 +503,7 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
     const values = validateProfile(req.body);
     if (!values) return res.status(400).json({ message: 'All profile fields are required and must respect length limits.' });
     try {
-      const result = await pool.query(`INSERT INTO profiles (user_id, first_name, last_name, phone, location, headline) VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${columns}`, [req.user.id, ...values]);
+      const result = await pool.query(`INSERT INTO profiles (user_id, first_name, last_name, phone, location, headline, skills) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING ${columns}`, [req.user.id, ...values.slice(0, 5), JSON.stringify(values[5])]);
       res.status(201).json({ profile: result.rows[0] });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'Profile already exists.' });
@@ -508,7 +523,7 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
     const values = validateProfile(req.body);
     if (!values) return res.status(400).json({ message: 'All profile fields are required and must respect length limits.' });
     try {
-      const result = await pool.query(`UPDATE profiles SET first_name=$2,last_name=$3,phone=$4,location=$5,headline=$6,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING ${columns}`, [req.user.id, ...values]);
+      const result = await pool.query(`UPDATE profiles SET first_name=$2,last_name=$3,phone=$4,location=$5,headline=$6,skills=$7,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING ${columns}`, [req.user.id, ...values.slice(0, 5), JSON.stringify(values[5])]);
       if (!result.rowCount) return res.status(404).json({ message: 'Profile not found.' });
       res.json({ profile: result.rows[0] });
     } catch (error) { next(error); }
@@ -519,6 +534,7 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
   registerNotificationRoutes(app, pool, authenticateUser);
   registerRecruiterRoutes(app, pool, authenticateUser);
   registerResumeFeedbackRoutes(app, pool, authenticateUser, resumeFeedback);
+  registerJobMatchRoutes(app, pool, authenticateUser, resumeFeedback);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
