@@ -41,7 +41,12 @@ if [[ ! -d node_modules ]]; then
 fi
 
 echo "Starting PostgreSQL..."
-docker compose up -d --wait db
+RUNNING_DB="$(docker ps --filter "publish=5432" --filter "status=running" --format '{{.Names}}' | head -n 1)"
+if [[ -n "$RUNNING_DB" ]]; then
+    echo "Reusing existing PostgreSQL container: $RUNNING_DB"
+else
+    docker compose up -d --wait db
+fi
 
 echo "Running database migrations..."
 npm run db:migrate
