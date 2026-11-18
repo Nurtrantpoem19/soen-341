@@ -62,9 +62,68 @@
                 <ul class="requirements-list" id="job-requirements"></ul>
             </section>
 
-            <section class="detail-card apply-card" aria-labelledby="apply-heading">
+            <section class="detail-card match-card" aria-labelledby="match-heading">
                 <div class="section-heading">
                     <span class="section-icon" aria-hidden="true">03</span>
+                    <div><h2 id="match-heading">Resume and skills match</h2><p>Compare a saved resume and your profile skills with this role.</p></div>
+                </div>
+                <form id="match-form" class="match-form" novalidate>
+                    <label for="match-resume">Resume</label>
+                    <select id="match-resume" name="resumeId" disabled><option value="">Loading resumes...</option></select>
+                    <p class="match-disclosure">The selected resume, job posting, and profile skills are sent to Google Gemini for analysis. AI can be wrong, so review the result and use your own judgement.</p>
+                    <p id="match-status" class="match-status" role="status" aria-live="polite"></p>
+                    <button class="primary-button" id="match-button" type="submit" disabled>Match my resume</button>
+                </form>
+                <div id="match-result" class="match-result" hidden>
+                    <div class="match-score-row"><div class="match-score" id="match-score">0</div><p id="match-summary"></p></div>
+                    <div class="match-columns">
+                        <div><h3>Matched skills</h3><ul id="matched-skills"></ul></div>
+                        <div><h3>Skills to build</h3><ul id="missing-skills"></ul></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-card match-card" aria-labelledby="match-heading">
+                <div class="section-heading">
+                    <span class="section-icon" aria-hidden="true">03</span>
+                    <div>
+                        <h2 id="match-heading">Resume and skills match</h2>
+                        <p>Compare a saved resume and your profile skills with this role.</p>
+                    </div>
+                </div>
+                <form id="match-form" class="match-form" novalidate>
+                    <label for="match-resume">Resume</label>
+                    <select id="match-resume" name="resumeId" disabled>
+                        <option value="">Loading resumes...</option>
+                    </select>
+                    <p class="match-disclosure">
+                        The selected resume, job posting, and profile skills are sent to Google Gemini for analysis.
+                        AI can be wrong, so review the result and use your own judgement.
+                    </p>
+                    <p id="match-status" class="match-status" role="status" aria-live="polite"></p>
+                    <button class="primary-button" id="match-button" type="submit" disabled>Match my resume</button>
+                </form>
+                <div id="match-result" class="match-result" hidden>
+                    <div class="match-score-row">
+                        <div class="match-score" id="match-score">0</div>
+                        <p id="match-summary"></p>
+                    </div>
+                    <div class="match-columns">
+                        <div>
+                            <h3>Matched skills</h3>
+                            <ul id="matched-skills"></ul>
+                        </div>
+                        <div>
+                            <h3>Skills to build</h3>
+                            <ul id="missing-skills"></ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-card apply-card" aria-labelledby="apply-heading">
+                <div class="section-heading">
+                    <span class="section-icon" aria-hidden="true">04</span>
                     <div>
                         <h2 id="apply-heading">Interested in this role?</h2>
                         <p>Make sure your <a href="profile.html">profile</a> and <a href="resume.html">resume</a> are up to date before applying.</p>

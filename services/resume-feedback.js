@@ -84,7 +84,7 @@ function describeJob(job) {
 
 // resume is { kind: 'pdf', data: Buffer } or { kind: 'text', text: string }; job is optional.
 // Returns the parameters for ai.models.generateContent.
-function buildFeedbackRequest({ resume, job = null, model = DEFAULT_MODEL }) {
+function buildFeedbackRequest({ resume, job = null, profile = null, model = DEFAULT_MODEL }) {
   const parts = [];
   if (resume.kind === 'pdf') {
     // Gemini reads PDFs directly, so no PDF parsing library is needed.
@@ -92,8 +92,13 @@ function buildFeedbackRequest({ resume, job = null, model = DEFAULT_MODEL }) {
   } else {
     parts.push({ text: `<resume>\n${resume.text}\n</resume>` });
   }
+  let profileContext = '';
+  if (profile) {
+    const skills = Array.isArray(profile.skills) ? profile.skills.join(', ') : '';
+    profileContext = `\n\n<profile>\nHeadline: ${profile.headline || ''}\nLocation: ${profile.location || ''}\nSkills: ${skills}\n</profile>`;
+  }
   const task = job
-    ? `Review the resume above for the job posting below. Fill in jobMatch by comparing the resume with the posting's requirements.\n\n${describeJob(job)}`
+    ? `Review the resume above for the job posting below. Fill in jobMatch by comparing the resume and profile with the posting's requirements.${profileContext}\n\n${describeJob(job)}`
     : 'Review the resume above for general quality. No specific job is targeted.';
   parts.push({ text: task });
   return {
@@ -198,7 +203,7 @@ function createResumeFeedbackService({
 } = {}) {
   const models = fallbackModel && fallbackModel !== model ? [model, fallbackModel] : [model];
   return {
-    async analyze({ filePath, mimeType, job = null }) {
+    async analyze({ filePath, mimeType, job = null, profile = null }) {
       if (!client) throw new FeedbackError('not_configured', 'GEMINI_API_KEY is not set.');
       const data = await fs.readFile(filePath);
       let resume;
@@ -211,7 +216,7 @@ function createResumeFeedbackService({
       for (const [index, name] of models.entries()) {
         let response;
         try {
-          response = await client.models.generateContent(buildFeedbackRequest({ resume, job, model: name }));
+          response = await client.models.generateContent(buildFeedbackRequest({ resume, job, profile, model: name }));
         } catch (error) {
           const hasBackup = index < models.length - 1;
           if (hasBackup && error instanceof ApiError && RETRY_ON_BACKUP(error.status)) {

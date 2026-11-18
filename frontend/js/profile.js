@@ -6,6 +6,7 @@ const lastNameInput = document.getElementById("last-name");
 const headlineInput = document.getElementById("headline");
 const phoneInput = document.getElementById("phone");
 const locationInput = document.getElementById("location");
+const skillsInput = document.getElementById("skills");
 const errorMessage = document.getElementById("error-message");
 const profileButton = document.getElementById("profile-button");
 
@@ -71,6 +72,7 @@ function fillForm(profile) {
     headlineInput.value = profile.headline || "";
     phoneInput.value = profile.phone || "";
     locationInput.value = profile.location || "";
+    skillsInput.value = Array.isArray(profile.skills) ? profile.skills.join(", ") : "";
     updateSummary();
 }
 
@@ -302,13 +304,18 @@ profileForm.addEventListener("submit", async function (event) {
         lastName: lastNameInput.value.trim(),
         phone: phoneInput.value.trim(),
         location: locationInput.value.trim(),
-        headline: headlineInput.value.trim()
+        headline: headlineInput.value.trim(),
+        skills: skillsInput.value.split(",").map(function (skill) { return skill.trim(); }).filter(Boolean)
     };
 
     showMessage("");
 
     if (Object.values(profile).some(function (value) { return value === ""; })) {
         showMessage("Please complete all fields.");
+        return;
+    }
+    if (profile.skills.length === 0) {
+        showMessage("Please add at least one skill.");
         return;
     }
 
