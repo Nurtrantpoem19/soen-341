@@ -69,6 +69,44 @@ test('buildFeedbackRequest sends DOCX text and the target job, and asks for a jo
   assert.match(text, /PostgreSQL/);
 });
 
+test('buildFeedbackRequest includes saved profile skills in a job match', () => {
+  const params = buildFeedbackRequest({
+    resume: { kind: 'text', text: 'Jane Doe\nJunior developer' },
+    job,
+    profile: { headline: 'Junior Backend Developer', location: 'Montreal, QC', skills: ['Node.js', 'PostgreSQL'] },
+    model: 'm'
+  });
+  const text = params.contents[0].parts.map(part => part.text).join('\n');
+  assert.match(text, /<profile>/);
+  assert.match(text, /Node\.js, PostgreSQL/);
+});
+
+test('buildFeedbackRequest includes saved profile skills in a job match', () => {
+  const params = buildFeedbackRequest({
+    resume: { kind: 'text', text: 'Jane Doe\nJunior developer' },
+    job,
+    profile: { headline: 'Junior Backend Developer', location: 'Montreal, QC', skills: ['Node.js', 'PostgreSQL'] },
+    model: 'm'
+  });
+  const text = params.contents[0].parts.map(part => part.text).join('\n');
+  assert.match(text, /<profile>/);
+  assert.match(text, /Node\.js, PostgreSQL/);
+  assert.match(text, /Junior Backend Developer/);
+});
+
+test('buildFeedbackRequest includes saved profile skills in a job match', () => {
+  const params = buildFeedbackRequest({
+    resume: { kind: 'text', text: 'Jane Doe\nJunior developer' },
+    job,
+    profile: { headline: 'Junior Backend Developer', location: 'Montreal, QC', skills: ['Node.js', 'PostgreSQL'] },
+    model: 'm'
+  });
+  const text = params.contents[0].parts.map(part => part.text).join('\n');
+  assert.match(text, /<profile>/);
+  assert.match(text, /Node\.js, PostgreSQL/);
+  assert.match(text, /Junior Backend Developer/);
+});
+
 test('FEEDBACK_SCHEMA objects are closed and require every field', () => {
   for (const schema of Object.values(FEEDBACK_SCHEMA)) {
     assert.equal(schema.additionalProperties, false);
@@ -232,6 +270,10 @@ test('resume feedback API', async t => {
       VALUES ('Junior Backend Developer','Aurora Fintech','Toronto','Engineering','Full-time','Build payment APIs.','Node.js',$1) RETURNING id`, [open])).rows[0].id);
   }
   const [openJob, closedJob] = jobs;
+  await pool.query(
+    'INSERT INTO profiles(user_id,first_name,last_name,phone,location,headline,skills) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+    [owner, 'Jane', 'Doe', '555-0100', 'Montreal, QC', 'Junior Backend Developer', JSON.stringify(['Node.js', 'PostgreSQL'])]
+  );
 
   // A fake AI service records what it receives and returns whatever the current test sets.
   const calls = [];
@@ -306,6 +348,22 @@ test('resume feedback API', async t => {
     assert.equal(pdfLatest.body.feedback.overallScore, 78);
     const none = await addResume(owner, 'new.pdf', 'application/pdf', Buffer.from('%PDF-1.4 new'));
     assert.equal((await request('GET', `/api/resumes/${none}/feedback`)).status, 404);
+  });
+
+  await t.test('acceptance: job matching uses the owned resume and saved profile skills', async () => {
+    next = async () => ({ feedback: validFeedback, model: 'fake-model' });
+    const unauthenticated = await request('POST', `/api/jobs/${openJob}/match`, { body: { resumeId: pdfId }, as: null });
+    assert.equal(unauthenticated.status, 401);
+    assert.equal((await request('POST', `/api/jobs/${openJob}/match`, { body: { resumeId: otherId } })).status, 404);
+    const result = await request('POST', `/api/jobs/${openJob}/match`, { body: { resumeId: pdfId } });
+    assert.equal(result.status, 201);
+    assert.equal(result.body.jobId, openJob);
+    assert.equal(result.body.feedback.jobMatch.score, 64);
+    assert.equal(calls.at(-1).profile.headline, 'Junior Backend Developer');
+    assert.deepEqual(calls.at(-1).profile.skills, ['Node.js', 'PostgreSQL']);
+    const latest = await request('GET', `/api/jobs/${openJob}/match`);
+    assert.equal(latest.status, 200);
+    assert.equal(latest.body.resumeId, pdfId);
   });
 
   await t.test('AI failures return clear errors and save nothing', async () => {
