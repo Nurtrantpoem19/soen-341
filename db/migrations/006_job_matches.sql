@@ -1,7 +1,4 @@
--- Profile skills and persisted AI resume/job match results.
-ALTER TABLE profiles
-    ADD COLUMN IF NOT EXISTS skills JSONB NOT NULL DEFAULT '[]'::jsonb;
-
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS skills JSONB NOT NULL DEFAULT '[]'::jsonb;
 CREATE TABLE IF NOT EXISTS job_matches (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -12,6 +9,4 @@ CREATE TABLE IF NOT EXISTS job_matches (
     feedback JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS job_matches_latest_idx
-    ON job_matches(user_id, job_id, resume_id, created_at);
+CREATE INDEX IF NOT EXISTS job_matches_latest_idx ON job_matches(user_id, job_id, resume_id, created_at);
