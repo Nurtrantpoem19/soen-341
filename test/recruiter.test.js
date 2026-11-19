@@ -54,10 +54,11 @@ test('recruiter dashboard and posting management', async t => {
     pool = new Pool();
   }
   const users = [], jobs = [];
-  let server;
+  let server, failureServer;
   t.after(async () => {
     try {
       if (server?.listening) await new Promise(resolve => server.close(resolve));
+      if (failureServer?.listening) await new Promise(resolve => failureServer.close(resolve));
       for (const id of jobs) await pool.query('DELETE FROM jobs WHERE id=$1', [id]);
       for (const id of users) await pool.query('DELETE FROM users WHERE id=$1', [id]);
     } finally { await pool.end(); }
@@ -198,17 +199,91 @@ test('recruiter dashboard and posting management', async t => {
 
   await t.test('acceptance: a recruiter updates the status of candidates on their own postings', async () => {
     const update = (id, status, as) => request('PATCH', `/api/recruiter/applications/${id}/status`, { body: { status }, as });
+    const notificationCount = async () => Number((await pool.query(
+      "SELECT COUNT(*) AS count FROM notifications WHERE application_id=$1 AND user_id=$2 AND type='application_status'",
+      [applicationId, seeker]
+    )).rows[0].count);
+
     const updated = await update(applicationId, 'Under Review');
     assert.equal(updated.status, 200);
     assert.equal(updated.body.application.status, 'Under Review');
-    for (const status of ['Interview', 'Offered', 'Rejected']) assert.equal((await update(applicationId, status)).body.application.status, status);
+    assert.equal(await notificationCount(), 1);
+    const firstNotice = (await pool.query(
+      "SELECT * FROM notifications WHERE application_id=$1 AND type='application_status'",
+      [applicationId]
+    )).rows[0];
+    assert.equal(firstNotice.user_id, seeker);
+    assert.equal(firstNotice.actor_user_id, recruiter);
+    assert.match(firstNotice.message, /moved from Applied to Under Review/);
+
+    assert.equal((await update(applicationId, 'Under Review')).status, 200);
+    assert.equal(await notificationCount(), 1);
+    for (const status of ['Interview', 'Offered', 'Rejected']) {
+      assert.equal((await update(applicationId, status)).body.application.status, status);
+    }
+    assert.equal(await notificationCount(), 4);
+    const interviewNotice = (await pool.query(
+      "SELECT type, message FROM notifications WHERE application_id=$1 AND type='application_status' AND message LIKE '%to Interview.%'",
+      [applicationId]
+    )).rows[0];
+    assert.ok(interviewNotice);
+    assert.match(interviewNotice.message, /moved from Under Review to Interview/);
+    assert.equal((await pool.query(
+      "SELECT COUNT(*) AS count FROM notifications WHERE application_id=$1 AND type='interview_invitation'",
+      [applicationId]
+    )).rows[0].count * 1, 0);
+
+    assert.equal((await update(applicationId, 'Under Review')).body.application.status, 'Under Review');
+    assert.equal(await notificationCount(), 5);
+    assert.equal((await update(applicationId, 'Rejected')).body.application.status, 'Rejected');
+    assert.equal(await notificationCount(), 6);
+
     for (const status of ['Hired', '', null, 5, undefined]) assert.equal((await update(applicationId, status)).status, 400);
     assert.equal((await update('abc', 'Interview')).status, 400);
     assert.equal((await update(applicationId, 'Offered', otherRecruiter)).status, 404);
     assert.equal((await update(2147483647, 'Offered')).status, 404);
+    assert.equal(await notificationCount(), 6);
     // The job seeker sees the recruiter's decision in their own history.
     const history = await request('GET', '/api/applications/me', { as: seeker });
     assert.equal(history.body.applications.find(row => row.id === applicationId).status, 'Rejected');
+
+    let rollbackCalled = false;
+    const rollbackPool = {
+      query: (...args) => pool.query(...args),
+      async connect() {
+        const client = await pool.connect();
+        return {
+          query(sql, parameters) {
+            if (sql === 'ROLLBACK') rollbackCalled = true;
+            if (sql.includes('INSERT INTO notifications') && parameters[1] === 'application_status') {
+              throw new Error('simulated status notification write failure');
+            }
+            return client.query(sql, parameters);
+          },
+          release() { client.release(); }
+        };
+      }
+    };
+    failureServer = createApp(rollbackPool).listen(0, '127.0.0.1');
+    await new Promise(resolve => failureServer.once('listening', resolve));
+    const failedResponse = await fetch(
+      `http://127.0.0.1:${failureServer.address().port}/api/recruiter/applications/${applicationId}/status`,
+      {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${token(recruiter)}`
+        },
+        body: JSON.stringify({ status: 'Offered' })
+      }
+    );
+    assert.equal(failedResponse.status, 500);
+    assert.equal(rollbackCalled, true);
+    assert.equal(await notificationCount(), 6);
+    if (process.env.TEST_DATABASE_URL) {
+      const stored = await pool.query('SELECT status FROM applications WHERE id=$1', [applicationId]);
+      assert.equal(stored.rows[0].status, 'Rejected');
+    }
   });
 
   await t.test('acceptance: archiving hides a posting from job seekers and keeps its applications', async () => {

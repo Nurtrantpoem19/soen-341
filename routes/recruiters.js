@@ -1,3 +1,5 @@
+const { createApplicationStatusNotification } = require('../services/notifications');
+
 // Recruiter dashboard and posting management (Sprint 3).
 // Every route requires a valid JWT and the recruiter role, and only ever touches the recruiter's own postings.
 const STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
@@ -170,19 +172,59 @@ function registerRecruiterRoutes(app, pool, authenticateUser) {
     if (typeof status !== 'string' || !STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Provide a valid status: Applied, Under Review, Interview, Offered, or Rejected.' });
     }
+
+    let client;
+    let transactionOpen = false;
     try {
-      const owned = await pool.query(
-        'SELECT a.id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id=$1 AND j.recruiter_id=$2',
+      client = await pool.connect();
+      await client.query('BEGIN');
+      transactionOpen = true;
+
+      const owned = await client.query(
+        `SELECT a.id, a.user_id AS "userId", a.job_id AS "jobId",
+                a.job_title AS "jobTitle", a.company, a.status,
+                j.recruiter_id AS "recruiterId"
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+         WHERE a.id=$1 AND j.recruiter_id=$2
+         FOR UPDATE`,
         [id, req.user.id]
       );
-      if (!owned.rowCount) return res.status(404).json({ message: 'Application not found.' });
-      const result = await pool.query(
+      if (!owned.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Application not found.' });
+      }
+
+      const application = owned.rows[0];
+      const result = await client.query(
         'UPDATE applications SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING id, job_id AS "jobId", status, applied_at AS "appliedAt", updated_at AS "updatedAt"',
         [status, id]
       );
-      if (!result.rowCount) return res.status(404).json({ message: 'Application not found.' });
+      if (!result.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Application not found.' });
+      }
+      if (application.status !== status) {
+        await createApplicationStatusNotification(client, application, application.status, status);
+      }
+
+      await client.query('COMMIT');
+      transactionOpen = false;
       res.json({ message: 'Application status updated.', application: result.rows[0] });
-    } catch (error) { next(error); }
+    } catch (error) {
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          return next(rollbackError);
+        }
+      }
+      next(error);
+    } finally {
+      if (client) client.release();
+    }
   });
 }
 
