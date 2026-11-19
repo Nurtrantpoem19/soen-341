@@ -16,29 +16,34 @@ const matchScore = document.getElementById("match-score");
 const matchSummary = document.getElementById("match-summary");
 const matchedSkills = document.getElementById("matched-skills");
 const missingSkills = document.getElementById("missing-skills");
-const matchForm = document.getElementById("match-form");
-const matchResume = document.getElementById("match-resume");
-const matchButton = document.getElementById("match-button");
-const matchStatus = document.getElementById("match-status");
-const matchResult = document.getElementById("match-result");
-const matchScore = document.getElementById("match-score");
-const matchSummary = document.getElementById("match-summary");
-const matchedSkills = document.getElementById("matched-skills");
-const missingSkills = document.getElementById("missing-skills");
 
-// Proposed integration point for Job Application Submission and Tracking (feature/sprint2-application-tracking-jack).
-// That branch adds POST /api/applications with { jobId, jobTitle, company, coverLetter } and returns { application }.
-// Replace this stub with the real request once that API and login tokens are available on main.
 const applicationApi = {
     async submitApplication(job) {
-        void job;
-        throw new Error("Job applications will be available once application tracking is connected.");
+        const token = getToken();
+        if (!token) {
+            throw new Error("Please log in before applying.");
+        }
+
+        const response = await fetch("http://localhost:3000/api/applications", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ jobId: job.jobId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Unable to submit application.");
+        }
+
+        return data.application;
     }
 };
 
 let currentJob = null;
-const TOKEN_KEY = "careerconnect_token";
-function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
 const TOKEN_KEY = "careerconnect_token";
 
 function getToken() {
@@ -250,27 +255,6 @@ try {
 } catch (error) {
     // No referrer: keep the default link to job search.
 }
-
-matchForm.addEventListener("submit", async function (event) {
-    event.preventDefault();
-    if (!currentJob || !matchResume.value) { setMatchStatus("Select a resume before matching."); return; }
-    const token = getToken();
-    if (!token) { setMatchStatus("Log in to match a resume."); return; }
-    matchButton.disabled = true; matchButton.textContent = "Matching...";
-    setMatchStatus("Analyzing this job and your resume...", "success");
-    try {
-        const response = await fetch(`http://localhost:3000/api/jobs/${currentJob.id}/match`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ resumeId: Number(matchResume.value) })
-        });
-        const data = await response.json();
-        if (!response.ok) { setMatchStatus(data.message || "Unable to match this resume."); return; }
-        setMatchStatus("Match complete.", "success");
-        renderMatch(data);
-    } catch (error) { setMatchStatus("Unable to connect to the AI matcher. Please try again."); }
-    finally { matchButton.disabled = false; matchButton.textContent = "Match my resume"; }
-});
 
 matchForm.addEventListener("submit", async function (event) {
     event.preventDefault();

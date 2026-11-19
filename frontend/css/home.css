@@ -854,3 +854,8 @@ button:focus-visible {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Ensure hidden navigation items stay hidden */
+.sidebar-link[hidden] {
+    display: none !important;
+}
