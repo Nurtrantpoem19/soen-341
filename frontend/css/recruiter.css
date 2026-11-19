@@ -161,6 +161,12 @@
     font-size: 12px;
 }
 
+.interview-hint {
+    margin: -10px 0 16px;
+    color: #73656a;
+    font-size: 12px;
+}
+
 /* Create / edit dialog */
 .posting-dialog {
     width: min(92vw, 640px);

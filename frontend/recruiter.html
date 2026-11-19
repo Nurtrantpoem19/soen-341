@@ -129,6 +129,41 @@
         </form>
     </dialog>
 
+    <dialog id="interview-dialog" class="posting-dialog" aria-labelledby="interview-dialog-title">
+        <form id="interview-form" class="posting-form" novalidate>
+            <h2 id="interview-dialog-title">Invite candidate to an interview</h2>
+            <p id="interview-candidate"></p>
+            <div class="form-row">
+                <div>
+                    <label for="interview-date">Date</label>
+                    <input type="date" id="interview-date" name="date" required>
+                </div>
+                <div>
+                    <label for="interview-time">Time</label>
+                    <input type="time" id="interview-time" name="time" required>
+                </div>
+            </div>
+            <p class="interview-hint">The date and time use your device's local time zone.</p>
+            <div>
+                <label for="interview-location">Location <span class="optional">(optional)</span></label>
+                <input type="text" id="interview-location" name="location" maxlength="250">
+            </div>
+            <div>
+                <label for="interview-link">Meeting link <span class="optional">(optional, HTTPS)</span></label>
+                <input type="url" id="interview-link" name="meetingLink" maxlength="500" placeholder="https://">
+            </div>
+            <div>
+                <label for="interview-message">Message <span class="optional">(optional)</span></label>
+                <textarea id="interview-message" name="message" rows="4" maxlength="700"></textarea>
+            </div>
+            <p id="interview-error" class="form-error" role="alert"></p>
+            <div class="dialog-actions">
+                <button type="button" class="secondary-button" id="interview-cancel">Cancel</button>
+                <button type="submit" class="primary-button" id="interview-send">Send invitation</button>
+            </div>
+        </form>
+    </dialog>
+
     <script src="js/recruiter.js"></script>
 </body>
 </html>

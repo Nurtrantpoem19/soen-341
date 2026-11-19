@@ -3,7 +3,12 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { migrate } = require('../db/migrate');
 const { createApp } = require('../server');
-const { validateJob, readDate, summarizePostings } = require('../routes/recruiter');
+const {
+  validateJob,
+  readDate,
+  summarizePostings,
+  validateInterviewInvitation
+} = require('../routes/recruiters');
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'recruiter-test-only-secret';
 
@@ -26,6 +31,37 @@ test('readDate accepts only real YYYY-MM-DD dates', () => {
   assert.equal(readDate('2026-11-30', 1).toISOString(), '2026-12-01T00:00:00.000Z');
   for (const value of ['2026-02-30', '2026-13-01', '11/05/2026', '2026-11-5', '', 'today', undefined, 20261105, ['2026-11-05']]) {
     assert.equal(readDate(value), null, String(value));
+  }
+});
+
+test('validateInterviewInvitation requires a future zoned time and safe optional details', () => {
+  const now = new Date('2026-11-19T15:00:00Z');
+  const valid = validateInterviewInvitation({
+    scheduledAt: '2026-11-20T10:00:00-05:00',
+    location: '  Montreal office  ',
+    meetingLink: 'https://meet.example/interview',
+    message: '  Bring a portfolio.  '
+  }, now);
+  assert.deepEqual(valid, {
+    scheduledAt: '2026-11-20T15:00:00.000Z',
+    location: 'Montreal office',
+    meetingLink: 'https://meet.example/interview',
+    message: 'Bring a portfolio.'
+  });
+  for (const body of [
+    null,
+    [],
+    {},
+    { scheduledAt: '2026-11-20T10:00:00' },
+    { scheduledAt: '2026-02-30T10:00:00Z' },
+    { scheduledAt: '2026-11-19T15:00:00Z' },
+    { scheduledAt: '2026-11-20T10:00:00Z', location: 12 },
+    { scheduledAt: '2026-11-20T10:00:00Z', location: 'x'.repeat(251) },
+    { scheduledAt: '2026-11-20T10:00:00Z', meetingLink: 'http://meet.example' },
+    { scheduledAt: '2026-11-20T10:00:00Z', meetingLink: 'https://user:pass@meet.example' },
+    { scheduledAt: '2026-11-20T10:00:00Z', meetingLink: 'https://meet.example', message: 'x'.repeat(701) }
+  ]) {
+    assert.equal(validateInterviewInvitation(body, now), null);
   }
 });
 
@@ -54,11 +90,12 @@ test('recruiter dashboard and posting management', async t => {
     pool = new Pool();
   }
   const users = [], jobs = [];
-  let server, failureServer;
+  let server, failureServer, invitationFailureServer;
   t.after(async () => {
     try {
       if (server?.listening) await new Promise(resolve => server.close(resolve));
       if (failureServer?.listening) await new Promise(resolve => failureServer.close(resolve));
+      if (invitationFailureServer?.listening) await new Promise(resolve => invitationFailureServer.close(resolve));
       for (const id of jobs) await pool.query('DELETE FROM jobs WHERE id=$1', [id]);
       for (const id of users) await pool.query('DELETE FROM users WHERE id=$1', [id]);
     } finally { await pool.end(); }
@@ -110,7 +147,8 @@ test('recruiter dashboard and posting management', async t => {
     const routes = [
       ['GET', '/api/recruiter/jobs'], ['POST', '/api/recruiter/jobs', posting], ['PUT', '/api/recruiter/jobs/1', posting],
       ['PATCH', '/api/recruiter/jobs/1/archive', { archived: true }], ['GET', '/api/recruiter/jobs/1/applications'],
-      ['PATCH', '/api/recruiter/applications/1/status', { status: 'Interview' }]
+      ['PATCH', '/api/recruiter/applications/1/status', { status: 'Interview' }],
+      ['POST', '/api/recruiter/applications/1/interviews', { scheduledAt: '2027-01-01T10:00:00Z' }]
     ];
     for (const [method, path, body] of routes) {
       assert.equal((await request(method, path, { body, as: null })).status, 401, `${method} ${path} without a token`);
@@ -197,6 +235,111 @@ test('recruiter dashboard and posting management', async t => {
     assert.equal((await request('GET', '/api/recruiter/jobs/0/applications')).status, 400);
   });
 
+  await t.test('acceptance: recruiter sends a real interview invitation to only the candidate', async () => {
+    const path = `/api/recruiter/applications/${applicationId}/interviews`;
+    const candidatePath = '/api/applications/me/interviews';
+    const scheduledAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const body = {
+      scheduledAt,
+      location: 'Montreal office, room 4',
+      meetingLink: 'https://meet.example/interview',
+      message: 'Please bring a portfolio.'
+    };
+
+    assert.equal((await request('POST', path, { body, as: null })).status, 401);
+    assert.equal((await request('POST', path, { body, as: seeker })).status, 403);
+    assert.equal((await request('POST', path, { body, as: otherRecruiter })).status, 404);
+    assert.equal((await request('GET', candidatePath, { as: null })).status, 401);
+
+    for (const invalidBody of [
+      {},
+      { ...body, scheduledAt: new Date(Date.now() - 60000).toISOString() },
+      { ...body, scheduledAt: '2027-02-30T10:00:00Z' },
+      { ...body, scheduledAt: '2027-01-01T10:00:00' },
+      { ...body, meetingLink: 'http://meet.example/interview' },
+      { ...body, location: 'x'.repeat(251) },
+      { ...body, message: 4 }
+    ]) {
+      assert.equal((await request('POST', path, { body: invalidBody })).status, 400);
+    }
+
+    const created = await request('POST', path, { body });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.invitation.applicationId, applicationId);
+    assert.equal(new Date(created.body.invitation.scheduledAt).toISOString(), scheduledAt);
+    assert.equal(created.body.invitation.location, body.location);
+    assert.equal(created.body.invitation.meetingLink, body.meetingLink);
+    assert.equal(created.body.invitation.message, body.message);
+
+    const duplicate = await request('POST', path, { body });
+    assert.equal(duplicate.status, 409);
+
+    const secondSchedule = new Date(Date.parse(scheduledAt) + 60 * 60 * 1000).toISOString();
+    assert.equal((await request('POST', path, { body: { ...body, scheduledAt: secondSchedule } })).status, 201);
+
+    const candidateInvitations = await request('GET', candidatePath, { as: seeker });
+    assert.equal(candidateInvitations.status, 200);
+    assert.equal(candidateInvitations.body.invitations.length, 2);
+    assert.deepEqual(
+      candidateInvitations.body.invitations.map(invitation => invitation.applicationId),
+      [applicationId, applicationId]
+    );
+    assert.equal((await request('GET', candidatePath, { as: secondSeeker })).body.invitations.length, 0);
+
+    const notices = (await request('GET', '/api/notifications', { as: seeker })).body.notifications
+      .filter(notification => notification.type === 'interview_invitation');
+    assert.equal(notices.length, 2);
+    assert.equal(notices[0].applicationId, applicationId);
+    assert.equal(notices[0].link, '/frontend/profile.html#interviews');
+    assert.match(notices[0].message, /Interview invitation/);
+    assert.match(notices[0].message, /Montreal office, room 4/);
+    assert.match(notices[0].message, /https:\/\/meet\.example\/interview/);
+    assert.match(notices[0].message, /Please bring a portfolio/);
+
+    let rollbackCalled = false;
+    const rollbackPool = {
+      query: (...args) => pool.query(...args),
+      async connect() {
+        const client = await pool.connect();
+        return {
+          query(sql, parameters) {
+            if (sql === 'ROLLBACK') rollbackCalled = true;
+            if (sql.includes('INSERT INTO notifications') && parameters[1] === 'interview_invitation') {
+              throw new Error('simulated interview notification write failure');
+            }
+            return client.query(sql, parameters);
+          },
+          release() { client.release(); }
+        };
+      }
+    };
+    invitationFailureServer = createApp(rollbackPool).listen(0, '127.0.0.1');
+    await new Promise(resolve => invitationFailureServer.once('listening', resolve));
+    const failedResponse = await fetch(
+      `http://127.0.0.1:${invitationFailureServer.address().port}${path}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${token(recruiter)}`
+        },
+        body: JSON.stringify({ ...body, scheduledAt: new Date(Date.parse(secondSchedule) + 60 * 60 * 1000).toISOString() })
+      }
+    );
+    assert.equal(failedResponse.status, 500);
+    assert.equal(rollbackCalled, true);
+    if (process.env.TEST_DATABASE_URL) {
+      assert.equal(Number((await pool.query(
+        'SELECT COUNT(*) AS count FROM interview_invitations WHERE application_id=$1',
+        [applicationId]
+      )).rows[0].count), 2);
+      assert.equal(Number((await pool.query(
+        "SELECT COUNT(*) AS count FROM notifications WHERE application_id=$1 AND type='interview_invitation'",
+        [applicationId]
+      )).rows[0].count), 2);
+    }
+  });
+
   await t.test('acceptance: a recruiter updates the status of candidates on their own postings', async () => {
     const update = (id, status, as) => request('PATCH', `/api/recruiter/applications/${id}/status`, { body: { status }, as });
     const notificationCount = async () => Number((await pool.query(
@@ -231,7 +374,7 @@ test('recruiter dashboard and posting management', async t => {
     assert.equal((await pool.query(
       "SELECT COUNT(*) AS count FROM notifications WHERE application_id=$1 AND type='interview_invitation'",
       [applicationId]
-    )).rows[0].count * 1, 0);
+    )).rows[0].count * 1, 2);
 
     assert.equal((await update(applicationId, 'Under Review')).body.application.status, 'Under Review');
     assert.equal(await notificationCount(), 5);
