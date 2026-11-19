@@ -7,7 +7,8 @@ Notifications are persisted in PostgreSQL and owned by the recipient in
 `Authorization: Bearer <token>`; the recipient ID always comes from the
 verified token, never from request data.
 
-The currently implemented event is a successful application submission:
+The implemented events are successful application submissions, recruiter
+status changes, and real interview invitations:
 
 - The applicant receives an `application_submitted` confirmation.
 - The job's recruiter receives a `new_application` alert only when
@@ -23,10 +24,91 @@ same transaction as the update. Unchanged statuses do not notify; changing
 away from and later back to a status creates a new event. The applicant-owned
 `PATCH /api/applications/:id/status` route is not a recruiter event source.
 
-`interview_invitation` and `deadline_reminder` remain reserved types without
-triggers. The current application model and recruiter UI do not persist an
-interview invitation or schedule, so an `Interview` status is reported only as
-a status change and is not labeled as an invitation.
+Recruiters can send a real invitation from the application card in the
+recruiter dashboard. The invitation requires a future `scheduledAt` timestamp
+with a timezone. The dashboard collects the date and time in the recruiter's
+local timezone and submits an ISO timestamp. Optional `location`, HTTPS
+`meetingLink`, and `message` details are saved with the invitation. Creating
+the invitation and its `interview_invitation` notification for the applicant
+share one PostgreSQL transaction; a failed write leaves neither persisted.
+The applicant can review their own invitations on the Profile page and follow
+the notification link to that section.
+
+An application status of `Interview` is separate from an interview
+invitation. Changing the status creates only an `application_status`
+notification; it does not invent a time, location, or meeting link.
+`deadline_reminder` remains a reserved notification type; deadline reminders
+are not implemented.
+
+## Interview invitations
+
+The `interview_invitations` table, added by
+`db/migrations/007_interview_invitations.sql`, stores the application and
+recruiter IDs, scheduled timestamp, optional location, meeting link, message,
+and creation timestamp. Deleting an application deletes its invitations.
+The unique `(application_id, scheduled_at)` constraint prevents a duplicate
+for the same application and time while allowing a separately scheduled
+invitation.
+
+`POST /api/recruiter/applications/:id/interviews` requires a valid JWT and
+recruiter role. The endpoint verifies that the application belongs to a job
+owned by that recruiter. Invalid or past timestamps and invalid optional
+details return 400; an application not owned by the recruiter returns 404; an
+invitation already scheduled for that application and time returns 409.
+
+Request:
+
+```json
+{
+  "scheduledAt": "2027-01-15T10:00:00-05:00",
+  "location": "Montreal office",
+  "meetingLink": "https://meet.example/interview",
+  "message": "Please bring a portfolio."
+}
+```
+
+`scheduledAt` is required and must be an ISO timestamp with an explicit
+timezone and a time in the future. `location` is optional (up to 250
+characters), `meetingLink` is optional (up to 500 characters, HTTPS only),
+and `message` is optional (up to 700 characters).
+
+Success returns 201 with the persisted invitation:
+
+```json
+{
+  "invitation": {
+    "id": 8,
+    "applicationId": 31,
+    "scheduledAt": "2027-01-15T15:00:00.000Z",
+    "location": "Montreal office",
+    "meetingLink": "https://meet.example/interview",
+    "message": "Please bring a portfolio.",
+    "createdAt": "2026-11-19T20:00:00.000Z"
+  }
+}
+```
+
+`GET /api/applications/me/interviews` requires a valid JWT and returns only
+invitations belonging to applications owned by the authenticated user:
+
+```json
+{
+  "invitations": [
+    {
+      "id": 8,
+      "applicationId": 31,
+      "jobId": 12,
+      "jobTitle": "Backend Developer",
+      "company": "CareerConnect Labs",
+      "scheduledAt": "2027-01-15T15:00:00.000Z",
+      "location": "Montreal office",
+      "meetingLink": "https://meet.example/interview",
+      "message": "Please bring a portfolio.",
+      "createdAt": "2026-11-19T20:00:00.000Z"
+    }
+  ]
+}
+```
 
 ## REST endpoints
 
@@ -101,6 +183,9 @@ Use the reusable functions from `services/notifications.js`:
 - `createApplicationSubmissionNotifications(transactionClient, application,
   recruiterId)` creates the applicant confirmation and, when `recruiterId` is
   non-null, the recruiter alert.
+- `createInterviewInvitationNotification(transactionClient, invitation)`
+  creates the candidate's `interview_invitation` notification with a link to
+  `/frontend/profile.html#interviews`.
 
 Call these with the same checked-out PostgreSQL client as the source action.
 The caller owns `BEGIN`, `COMMIT`, and `ROLLBACK`. Do not send an event before
@@ -111,12 +196,10 @@ legitimate transition can produce a new notification.
 
 The recruiter alert uses only `jobs.recruiter_id`; do not infer recruiter
 identity from company text, seeded job data, request payloads, or candidate
-accounts. Recruiter-driven status notifications must be integrated only with a
-recruiter-authorized route that verifies ownership of the job. The existing
-applicant-owned status PATCH route must not be used as that authorization
-boundary.
+accounts. Recruiter-driven status notifications and interview invitations
+must use recruiter-authorized routes that verify ownership of the job. The
+existing applicant-owned status PATCH route must not be used as that
+authorization boundary.
 
-Interview notifications require a persisted, real invitation and schedule.
-Deadline reminders require an agreed persisted deadline and recipient rule.
-Neither feature is triggered by this phase; no interview or deadline is
-invented.
+Deadline reminders still require an agreed persisted deadline and recipient
+rule. No interview or deadline details are inferred or invented.

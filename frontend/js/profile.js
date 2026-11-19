@@ -1,4 +1,5 @@
 const API_URL = "http://localhost:3000/api/profile";
+const INTERVIEW_API_URL = "http://localhost:3000/api/applications/me/interviews";
 
 const profileForm = document.getElementById("profile-form");
 const firstNameInput = document.getElementById("first-name");
@@ -292,6 +293,91 @@ async function loadProfile() {
     }
 }
 
+function renderInterviewInvitation(invitation) {
+    const item = document.createElement("li");
+    item.className = "interview-item";
+
+    const heading = document.createElement("h4");
+    heading.textContent = `${invitation.jobTitle} at ${invitation.company}`;
+    item.append(heading);
+
+    const scheduledAt = new Date(invitation.scheduledAt);
+    const time = document.createElement("time");
+    time.dateTime = scheduledAt.toISOString();
+    time.textContent = scheduledAt.toLocaleString();
+    item.append(time);
+
+    if (invitation.location) {
+        const location = document.createElement("p");
+        location.textContent = `Location: ${invitation.location}`;
+        item.append(location);
+    }
+
+    if (invitation.meetingLink) {
+        let safeMeetingUrl = null;
+        try {
+            const meetingUrl = new URL(invitation.meetingLink);
+            if (meetingUrl.protocol === "https:" && !meetingUrl.username && !meetingUrl.password) {
+                safeMeetingUrl = meetingUrl.href;
+            }
+        } catch (error) {
+            safeMeetingUrl = null;
+        }
+        if (safeMeetingUrl) {
+            const link = document.createElement("a");
+            link.href = safeMeetingUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "Join interview";
+            item.append(link);
+        } else {
+            const meetingLink = document.createElement("p");
+            meetingLink.textContent = `Meeting link: ${invitation.meetingLink}`;
+            item.append(meetingLink);
+        }
+    }
+
+    if (invitation.message) {
+        const message = document.createElement("p");
+        message.textContent = invitation.message;
+        item.append(message);
+    }
+
+    return item;
+}
+
+async function loadInterviewInvitations() {
+    const status = document.getElementById("interview-status");
+    const list = document.getElementById("interview-list");
+    const token = getToken();
+    if (!token) {
+        status.textContent = "Please log in to view your interview invitations.";
+        return;
+    }
+
+    try {
+        const response = await fetch(INTERVIEW_API_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                status.textContent = "Your session has expired. Please log in again.";
+                return;
+            }
+            status.textContent = data.message || "Unable to load interview invitations.";
+            return;
+        }
+
+        list.replaceChildren(...data.invitations.map(renderInterviewInvitation));
+        status.textContent = data.invitations.length
+            ? ""
+            : "You have no interview invitations yet.";
+    } catch (error) {
+        status.textContent = "Unable to connect to the server. Please try again.";
+    }
+}
+
 [firstNameInput, lastNameInput, headlineInput, locationInput].forEach(function (input) {
     input.addEventListener("input", updateSummary);
 });
@@ -447,3 +533,4 @@ window.addEventListener("beforeunload", function () {
 });
 
 loadProfile();
+loadInterviewInvitations();

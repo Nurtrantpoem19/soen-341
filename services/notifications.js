@@ -136,10 +136,50 @@ async function createApplicationStatusNotification(client, application, previous
     });
 }
 
+async function createInterviewInvitationNotification(client, invitation) {
+    const {
+        id,
+        userId,
+        applicationId,
+        jobId,
+        jobTitle,
+        company,
+        recruiterId,
+        scheduledAt,
+        location,
+        meetingLink,
+        message: invitationMessage
+    } = invitation;
+    const scheduledLabel = new Date(scheduledAt).toLocaleString('en-CA', {
+        timeZone: 'UTC',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+    const details = [
+        `Interview invitation for ${jobTitle} at ${company}: ${scheduledLabel} UTC.`,
+        location ? `Location: ${location}.` : null,
+        meetingLink ? `Meeting link: ${meetingLink}` : null,
+        invitationMessage || null
+    ].filter(Boolean);
+
+    return createNotification(client, {
+        userId,
+        type: 'interview_invitation',
+        title: 'Interview invitation',
+        message: details.join(' '),
+        link: '/frontend/profile.html#interviews',
+        applicationId,
+        jobId,
+        actorUserId: recruiterId,
+        dedupeKey: `interview:${id}:candidate:${userId}`
+    });
+}
+
 module.exports = {
     NOTIFICATION_TYPES,
     notificationColumns,
     createNotification,
     createApplicationSubmissionNotifications,
-    createApplicationStatusNotification
+    createApplicationStatusNotification,
+    createInterviewInvitationNotification
 };
