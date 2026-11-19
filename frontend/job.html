@@ -14,6 +14,7 @@
         <p class="home-navigation"><a href="../index.html">← Back to Home</a></p>
         <nav class="page-navigation" aria-label="Page navigation">
             <a id="back-to-search" href="jobs.html">Back to job search</a>
+            <a href="applications.html">My applications</a>
         </nav>
 
         <p id="details-status" class="search-status" role="status" aria-live="polite">Loading job details...</p>
@@ -65,27 +66,6 @@
             <section class="detail-card match-card" aria-labelledby="match-heading">
                 <div class="section-heading">
                     <span class="section-icon" aria-hidden="true">03</span>
-                    <div><h2 id="match-heading">Resume and skills match</h2><p>Compare a saved resume and your profile skills with this role.</p></div>
-                </div>
-                <form id="match-form" class="match-form" novalidate>
-                    <label for="match-resume">Resume</label>
-                    <select id="match-resume" name="resumeId" disabled><option value="">Loading resumes...</option></select>
-                    <p class="match-disclosure">The selected resume, job posting, and profile skills are sent to Google Gemini for analysis. AI can be wrong, so review the result and use your own judgement.</p>
-                    <p id="match-status" class="match-status" role="status" aria-live="polite"></p>
-                    <button class="primary-button" id="match-button" type="submit" disabled>Match my resume</button>
-                </form>
-                <div id="match-result" class="match-result" hidden>
-                    <div class="match-score-row"><div class="match-score" id="match-score">0</div><p id="match-summary"></p></div>
-                    <div class="match-columns">
-                        <div><h3>Matched skills</h3><ul id="matched-skills"></ul></div>
-                        <div><h3>Skills to build</h3><ul id="missing-skills"></ul></div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="detail-card match-card" aria-labelledby="match-heading">
-                <div class="section-heading">
-                    <span class="section-icon" aria-hidden="true">03</span>
                     <div>
                         <h2 id="match-heading">Resume and skills match</h2>
                         <p>Compare a saved resume and your profile skills with this role.</p>
@@ -130,11 +110,19 @@
                     </div>
                 </div>
                 <p id="apply-status" class="apply-status" role="status" aria-live="polite"></p>
+                <p id="deadline-text"></p>
+                <button type="button" id="reminder-button" hidden>Remind me before the deadline</button>
+                <button type="button" id="remove-reminder-button" hidden>Remove reminder</button>
+                <p id="reminder-status" role="status" aria-live="polite"></p>
+                <label for="cover-letter">Cover letter (optional, up to 2,000 characters)</label>
+                <textarea id="cover-letter" maxlength="2000" rows="5" style="display:block;width:100%;margin:12px 0;padding:12px;font:inherit"></textarea>
                 <button class="primary-button" id="apply-button" type="button">Apply for this job</button>
+                <p><a id="application-link" href="applications.html" hidden>View my applications</a></p>
             </section>
         </article>
     </main>
 
+    <script src="js/application-api.js"></script>
     <script src="js/job-details.js"></script>
 </body>
 </html>
