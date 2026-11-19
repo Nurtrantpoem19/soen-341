@@ -16,29 +16,10 @@ const matchScore = document.getElementById("match-score");
 const matchSummary = document.getElementById("match-summary");
 const matchedSkills = document.getElementById("matched-skills");
 const missingSkills = document.getElementById("missing-skills");
-const matchForm = document.getElementById("match-form");
-const matchResume = document.getElementById("match-resume");
-const matchButton = document.getElementById("match-button");
-const matchStatus = document.getElementById("match-status");
-const matchResult = document.getElementById("match-result");
-const matchScore = document.getElementById("match-score");
-const matchSummary = document.getElementById("match-summary");
-const matchedSkills = document.getElementById("matched-skills");
-const missingSkills = document.getElementById("missing-skills");
-
-// Proposed integration point for Job Application Submission and Tracking (feature/sprint2-application-tracking-jack).
-// That branch adds POST /api/applications with { jobId, jobTitle, company, coverLetter } and returns { application }.
-// Replace this stub with the real request once that API and login tokens are available on main.
-const applicationApi = {
-    async submitApplication(job) {
-        void job;
-        throw new Error("Job applications will be available once application tracking is connected.");
-    }
-};
+const coverLetter = document.getElementById("cover-letter");
+const applicationLink = document.getElementById("application-link");
 
 let currentJob = null;
-const TOKEN_KEY = "careerconnect_token";
-function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
 const TOKEN_KEY = "careerconnect_token";
 
 function getToken() {
@@ -95,49 +76,13 @@ function renderJob(job) {
 
     detailsStatus.hidden = true;
     jobDetails.hidden = false;
-    loadMatchData(job.id);
-}
-
-function setMatchStatus(message, state = "error") {
-    matchStatus.textContent = message;
-    matchStatus.dataset.state = state;
-}
-
-function renderMatch(match) {
-    const feedback = match.feedback || {};
-    const jobMatch = feedback.jobMatch;
-    if (!jobMatch) return;
-    matchScore.textContent = `${jobMatch.score}%`;
-    matchSummary.textContent = feedback.summary || "";
-    matchedSkills.replaceChildren(...jobMatch.matchedSkills.map(function (skill) {
-        const item = document.createElement("li"); item.textContent = skill; return item;
-    }));
-    missingSkills.replaceChildren(...jobMatch.missingSkills.map(function (skill) {
-        const item = document.createElement("li"); item.textContent = skill; return item;
-    }));
-    matchResult.hidden = false;
-}
-
-async function loadMatchData(jobId) {
-    const token = getToken();
-    if (!token) { setMatchStatus("Log in and save profile skills before matching a resume."); return; }
-    try {
-        const resumesResponse = await fetch("http://localhost:3000/api/resumes", { headers: { Authorization: `Bearer ${token}` } });
-        const resumesData = await resumesResponse.json();
-        if (!resumesResponse.ok) { setMatchStatus(resumesData.message || "Unable to load your resumes."); return; }
-        matchResume.replaceChildren();
-        if (!resumesData.resumes.length) {
-            const option = document.createElement("option"); option.value = ""; option.textContent = "Upload a resume first";
-            matchResume.append(option); setMatchStatus("Upload a resume to enable AI matching."); return;
-        }
-        resumesData.resumes.forEach(function (resume) {
-            const option = document.createElement("option"); option.value = resume.id; option.textContent = resume.original_name;
-            matchResume.append(option);
-        });
-        matchResume.disabled = false; matchButton.disabled = false; setMatchStatus("");
-        const matchResponse = await fetch(`http://localhost:3000/api/jobs/${jobId}/match`, { headers: { Authorization: `Bearer ${token}` } });
-        if (matchResponse.ok) renderMatch(await matchResponse.json());
-    } catch (error) { setMatchStatus("Unable to load your resume or previous match."); }
+    const deadline = job.deadlineAt ? new Date(job.deadlineAt) : null;
+    document.getElementById('deadline-text').textContent = deadline ? 'Application deadline: ' + deadline.toLocaleString() : '';
+    document.getElementById('reminder-button').hidden = !deadline || deadline <= new Date();
+    document.getElementById('remove-reminder-button').hidden = !deadline;
+    if (deadline && deadline <= new Date()) {
+        applyButton.disabled = true; applyButton.textContent = 'Application deadline passed';
+    }
     loadMatchData(job.id);
 }
 
@@ -253,27 +198,6 @@ try {
 
 matchForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    if (!currentJob || !matchResume.value) { setMatchStatus("Select a resume before matching."); return; }
-    const token = getToken();
-    if (!token) { setMatchStatus("Log in to match a resume."); return; }
-    matchButton.disabled = true; matchButton.textContent = "Matching...";
-    setMatchStatus("Analyzing this job and your resume...", "success");
-    try {
-        const response = await fetch(`http://localhost:3000/api/jobs/${currentJob.id}/match`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ resumeId: Number(matchResume.value) })
-        });
-        const data = await response.json();
-        if (!response.ok) { setMatchStatus(data.message || "Unable to match this resume."); return; }
-        setMatchStatus("Match complete.", "success");
-        renderMatch(data);
-    } catch (error) { setMatchStatus("Unable to connect to the AI matcher. Please try again."); }
-    finally { matchButton.disabled = false; matchButton.textContent = "Match my resume"; }
-});
-
-matchForm.addEventListener("submit", async function (event) {
-    event.preventDefault();
     if (!currentJob || !matchResume.value) {
         setMatchStatus("Select a resume before matching.");
         return;
@@ -319,19 +243,44 @@ applyButton.addEventListener("click", async function () {
     applyButton.textContent = "Submitting...";
     showApplyStatus("");
 
+    let completed = false;
     try {
-        await applicationApi.submitApplication({
-            jobId: currentJob.id,
-            jobTitle: currentJob.title,
-            company: currentJob.company
+        await applicationRequest('', {
+            method: 'POST',
+            body: JSON.stringify({ jobId: currentJob.id, coverLetter: coverLetter.value.trim() })
         });
         showApplyStatus("Your application was submitted successfully.", "success");
+        completed = true;
     } catch (error) {
         showApplyStatus(error.message || "Your application could not be submitted. Please try again.");
+        completed = error.status === 409;
+        if (error.status === 401) {
+            applicationLink.href = 'login.html';
+            applicationLink.textContent = 'Log in, then return to this job to apply';
+            applicationLink.hidden = false;
+        }
     } finally {
-        applyButton.disabled = false;
-        applyButton.textContent = "Apply for this job";
+        applyButton.disabled = completed;
+        applyButton.textContent = completed ? "Already applied" : "Apply for this job";
+        if (completed) {
+            coverLetter.disabled = true;
+            applicationLink.href = 'applications.html';
+            applicationLink.textContent = 'View my applications';
+            applicationLink.hidden = false;
+        }
     }
 });
 
+async function updateReminder(method) {
+    const message = document.getElementById('reminder-status');
+    const token = getToken();
+    if (!token) { message.textContent = 'Log in to save a reminder.'; return; }
+    try {
+        const response = await fetch(`${API_URL}/${currentJob.id}/reminder`, { method, headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        message.textContent = data.message || 'Unable to update reminder.';
+    } catch { message.textContent = 'Unable to connect. Please try again.'; }
+}
+document.getElementById('reminder-button').addEventListener('click', () => updateReminder('POST'));
+document.getElementById('remove-reminder-button').addEventListener('click', () => updateReminder('DELETE'));
 loadJob();

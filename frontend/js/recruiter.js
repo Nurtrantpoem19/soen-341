@@ -139,6 +139,30 @@ function renderPosting(job) {
     actions.append(applicationsButton, editButton, archiveButton);
     footer.append(actions);
     card.append(header, tags, footer);
+    const deadlineForm = element('form', 'scheduling-form');
+    const deadlineLabel = element('label', '', 'Application deadline (your local time)');
+    const deadlineInput = element('input');
+    deadlineInput.type = 'datetime-local';
+    deadlineInput.id = 'deadline-' + job.id;
+    deadlineLabel.htmlFor = deadlineInput.id;
+    if (job.deadlineAt) {
+        const date = new Date(job.deadlineAt);
+        deadlineInput.value = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    }
+    const deadlineSave = element('button', 'primary-button', 'Save deadline');
+    deadlineSave.type = 'submit';
+    const deadlineMessage = element('p'); deadlineMessage.setAttribute('role', 'status');
+    deadlineForm.append(deadlineLabel, deadlineInput, deadlineSave, deadlineMessage);
+    deadlineForm.addEventListener('submit', async event => {
+        event.preventDefault(); deadlineSave.disabled = true;
+        try {
+            const saved = await api('/jobs/' + job.id + '/deadline', { method: 'PATCH', body: { deadlineAt: deadlineInput.value ? new Date(deadlineInput.value).toISOString() : null } });
+            job.deadlineAt = saved.job.deadlineAt;
+            deadlineMessage.textContent = deadlineInput.value ? 'Deadline saved.' : 'Deadline removed.';
+        } catch (error) { deadlineMessage.textContent = error.message; }
+        finally { deadlineSave.disabled = false; }
+    });
+    card.append(deadlineForm);
     return card;
 }
 
@@ -285,6 +309,26 @@ function renderApplication(application) {
     control.append(label, select, feedback);
     footer.append(control);
     card.append(header, tags, letter, footer);
+    const interviewForm = element('form', 'scheduling-form');
+    const timeLabel = element('label', '', 'Interview time (your local time)');
+    const time = element('input'); time.type = 'datetime-local'; time.required = true;
+    time.id = 'interview-time-' + application.id; timeLabel.htmlFor = time.id;
+    const placeLabel = element('label', '', 'Location or meeting link');
+    const place = element('input'); place.type = 'text'; place.required = true; place.maxLength = 500;
+    place.id = 'interview-place-' + application.id; placeLabel.htmlFor = place.id;
+    const send = element('button', 'primary-button', 'Send or reschedule interview'); send.type = 'submit';
+    const message = element('p'); message.setAttribute('role', 'status');
+    interviewForm.append(timeLabel, time, placeLabel, place, send, message);
+    interviewForm.addEventListener('submit', async event => {
+        event.preventDefault(); send.disabled = true;
+        try {
+            const data = await api('/applications/' + application.id + '/interview', { method: 'POST', body: { scheduledAt: new Date(time.value).toISOString(), location: place.value } });
+            message.textContent = data.message; select.value = 'Interview'; application.status = 'Interview';
+            await loadPostings();
+        } catch (error) { message.textContent = error.message; }
+        finally { send.disabled = false; }
+    });
+    card.append(interviewForm);
     return card;
 }
 
