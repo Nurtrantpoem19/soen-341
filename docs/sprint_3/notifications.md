@@ -17,10 +17,16 @@ The currently implemented event is a successful application submission:
   transaction. Failed, closed-job, duplicate, or notification-write failures
   do not leave a partial application or notification.
 
-`application_status`, `interview_invitation`, and `deadline_reminder` are
-reserved notification types only. Their triggers are not implemented. In
-particular, `PATCH /api/applications/:id/status` remains applicant-owned and is
-not a recruiter event source.
+Recruiter-driven changes through `PATCH /api/recruiter/applications/:id/status`
+create an `application_status` notification for the application owner in the
+same transaction as the update. Unchanged statuses do not notify; changing
+away from and later back to a status creates a new event. The applicant-owned
+`PATCH /api/applications/:id/status` route is not a recruiter event source.
+
+`interview_invitation` and `deadline_reminder` remain reserved types without
+triggers. The current application model and recruiter UI do not persist an
+interview invitation or schedule, so an `Interview` status is reported only as
+a status change and is not labeled as an invitation.
 
 ## REST endpoints
 
@@ -98,8 +104,10 @@ Use the reusable functions from `services/notifications.js`:
 
 Call these with the same checked-out PostgreSQL client as the source action.
 The caller owns `BEGIN`, `COMMIT`, and `ROLLBACK`. Do not send an event before
-the source action succeeds. Use a stable, event-specific `dedupeKey` so retries
-and concurrent processing cannot create duplicate alerts.
+the source action succeeds. Use a unique key for each legitimate event
+occurrence. For state transitions, lock the source row and only emit when the
+old and new states differ; a retry then sees no transition, while a later
+legitimate transition can produce a new notification.
 
 The recruiter alert uses only `jobs.recruiter_id`; do not infer recruiter
 identity from company text, seeded job data, request payloads, or candidate

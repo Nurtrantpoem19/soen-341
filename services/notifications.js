@@ -1,3 +1,5 @@
+const { randomUUID } = require('node:crypto');
+
 const NOTIFICATION_TYPES = new Set([
     'application_submitted',
     'new_application',
@@ -119,9 +121,25 @@ async function createApplicationSubmissionNotifications(client, application, rec
     return { applicantNotification, recruiterNotification };
 }
 
+async function createApplicationStatusNotification(client, application, previousStatus, status) {
+    const { id, userId, jobId, jobTitle, company } = application;
+    return createNotification(client, {
+        userId,
+        type: 'application_status',
+        title: 'Application status updated',
+        message: `Your application for ${jobTitle} at ${company} moved from ${previousStatus} to ${status}.`,
+        link: `/frontend/job.html?id=${encodeURIComponent(jobId)}`,
+        applicationId: id,
+        jobId,
+        actorUserId: application.recruiterId,
+        dedupeKey: `application:${id}:status:${randomUUID()}`
+    });
+}
+
 module.exports = {
     NOTIFICATION_TYPES,
     notificationColumns,
     createNotification,
-    createApplicationSubmissionNotifications
+    createApplicationSubmissionNotifications,
+    createApplicationStatusNotification
 };
