@@ -17,6 +17,7 @@ const { registerRecruiterRoutes } = require('./routes/recruiters');
 const { registerResumeFeedbackRoutes } = require('./routes/resume-feedback');
 const { createResumeFeedbackService } = require('./services/resume-feedback');
 const { registerJobMatchRoutes } = require('./routes/job-matches');
+const { registerSchedulingRoutes } = require('./routes/scheduling');
 
 async function validateResumeFile(file) {
   const handle = await fsPromises.open(file.path, 'r');
@@ -155,8 +156,13 @@ function validateApplication(body) {
 
 function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedbackService() } = {}) {
   const app = express();
+  // Serve only public assets, never the repository root (.env, uploads, or source).
+  app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+  app.use('/frontend', express.static(path.join(__dirname, 'frontend'), { dotfiles: 'deny' }));
   const allowedOrigins = new Set([
     'http://localhost:5500',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     ...(process.env.CORS_ALLOWED_ORIGINS || '')
       .split(',')
       .map(origin => origin.trim())
@@ -535,6 +541,7 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
   registerRecruiterRoutes(app, pool, authenticateUser);
   registerResumeFeedbackRoutes(app, pool, authenticateUser, resumeFeedback);
   registerJobMatchRoutes(app, pool, authenticateUser, resumeFeedback);
+  registerSchedulingRoutes(app, pool, authenticateUser);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
@@ -553,9 +560,9 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
       const jobResult = await client.query(
         `SELECT id, title, company, recruiter_id AS "recruiterId"
          FROM jobs
-         WHERE id = $1 AND is_open = TRUE
+         WHERE id = $1 AND is_open = TRUE AND (deadline_at IS NULL OR deadline_at > $2)
          FOR SHARE`,
-        [values[0]]
+        [values[0], new Date()]
       );
       if (!jobResult.rowCount) {
         await client.query('ROLLBACK');
@@ -610,27 +617,9 @@ function createApp(pool, { demoAuth = false, resumeFeedback = createResumeFeedba
     } catch (error) { next(error); }
   });
 
-  // 3. Update an application's status (Applied, Under Review, Interview, Offered, Rejected)
-  app.patch('/api/applications/:id/status', authenticateUser, async (req, res, next) => {
-    const appId = Number(req.params.id);
-    const { status } = req.body || {};
-    if (!Number.isSafeInteger(appId) || appId < 1 || appId > 2147483647) {
-      return res.status(400).json({ message: 'Provide a valid application id.' });
-    }
-    if (typeof status !== 'string' || !APPLICATION_STATUSES.includes(status)) {
-      return res.status(400).json({ message: 'Provide a valid status: Applied, Under Review, Interview, Offered, or Rejected.' });
-    }
-    try {
-      const result = await pool.query(
-        `UPDATE applications SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND user_id=$3 RETURNING ${applicationColumns}`,
-        [status, appId, req.user.id]
-      );
-      if (!result.rowCount) return res.status(404).json({ message: 'Application not found.' });
-      res.json({
-        message: 'Application status updated successfully.',
-        application: result.rows[0]
-      });
-    } catch (error) { next(error); }
+  // Hiring decisions belong to the posting's recruiter, never the applicant.
+  app.patch('/api/applications/:id/status', authenticateUser, (req, res) => {
+    res.status(403).json({ message: 'Only the posting recruiter can change application status.' });
   });
 
   app.use((error, req, res, next) => {
