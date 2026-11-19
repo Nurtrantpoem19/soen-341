@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { migrate } = require('../db/migrate');
 const { createApp } = require('../server');
-const { validateJob, readDate, summarizePostings } = require('../routes/recruiter');
+const { validateJob, readDate, summarizePostings } = require('../routes/recruiters');
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'recruiter-test-only-secret';
 
@@ -40,6 +40,34 @@ test('summarizePostings counts applications per posting and status', () => {
 });
 
 // Integration and acceptance tests: real routes against PostgreSQL (CI) or pg-mem (local).
+test('recruiter status notification failure rolls back and releases the transaction', async t => {
+  const commands = [];
+  const client = {
+    async query(sql) {
+      commands.push(sql);
+      if (sql.startsWith('SELECT a.*')) return { rowCount: 1, rows: [{ id: 1, user_id: 2, job_id: 3, job_title: 'Developer', company: 'Example', status: 'Applied' }] };
+      if (sql.startsWith('UPDATE applications')) return { rowCount: 1, rows: [{ id: 1, status: 'Interview' }] };
+      if (sql.startsWith('SELECT id FROM notifications')) return { rowCount: 0, rows: [] };
+      if (sql.includes('INSERT INTO notifications')) throw new Error('notification write failed');
+      return { rows: [], rowCount: 0 };
+    },
+    release() { commands.push('RELEASE'); }
+  };
+  const pool = { query: async () => ({ rowCount: 1, rows: [{ role: 'recruiter' }] }), connect: async () => client };
+  const server = createApp(pool).listen(0, '127.0.0.1');
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  await new Promise(resolve => server.once('listening', resolve));
+  const token = jwt.sign({ userId: 1 }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/recruiter/applications/1/status`, {
+    method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ status: 'Interview' })
+  });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { message: 'Internal server error' });
+  assert.ok(commands.includes('ROLLBACK'));
+  assert.ok(!commands.includes('COMMIT'));
+  assert.equal(commands.at(-1), 'RELEASE');
+});
+
 test('recruiter dashboard and posting management', async t => {
   let pool;
   if (process.env.TEST_DATABASE_URL) {
@@ -209,6 +237,65 @@ test('recruiter dashboard and posting management', async t => {
     // The job seeker sees the recruiter's decision in their own history.
     const history = await request('GET', '/api/applications/me', { as: seeker });
     assert.equal(history.body.applications.find(row => row.id === applicationId).status, 'Rejected');
+    const alerts = await request('GET', '/api/notifications', { as: seeker });
+    const changes = alerts.body.notifications.filter(row => row.applicationId === applicationId && row.type === 'application_status');
+    assert.equal(changes.length, 4);
+    assert.ok(changes.some(row => row.message.includes('Rejected') && row.actorUserId === recruiter));
+    assert.equal((await request('GET', '/api/notifications', { as: secondSeeker })).body.notifications.filter(row => row.applicationId === applicationId).length, 0);
+    const analytics = await request('GET', '/api/applications/me/analytics', { as: seeker });
+    assert.equal(analytics.body.analytics.byStatus.Rejected, 1);
+    assert.equal((await update(applicationId, 'Rejected')).status, 200);
+    const afterRetry = await request('GET', '/api/notifications', { as: seeker });
+    assert.equal(afterRetry.body.notifications.filter(row => row.applicationId === applicationId && row.type === 'application_status').length, 4);
+  });
+
+  await t.test('acceptance: interview invitations enforce ownership, persist and deduplicate retries', async () => {
+    const body = { scheduledAt: new Date(Date.now() + 86400000).toISOString(), location: 'Room 341' };
+    const path = `/api/recruiter/applications/${applicationId}/interview`;
+    assert.equal((await request('POST', path, { body, as: null })).status, 401);
+    assert.equal((await request('POST', path, { body, as: seeker })).status, 403);
+    assert.equal((await request('POST', path, { body, as: otherRecruiter })).status, 404);
+    for (const bad of [{ ...body, scheduledAt: '2020-01-01T10:00:00Z' }, { ...body, location: '' }, { ...body, scheduledAt: 'tomorrow' }]) {
+      assert.equal((await request('POST', path, { body: bad })).status, 400);
+    }
+    assert.equal((await request('POST', path, { body })).status, 200);
+    assert.equal((await request('POST', path, { body })).status, 200);
+    let alerts = (await request('GET', '/api/notifications', { as: seeker })).body.notifications;
+    assert.equal(alerts.filter(n => n.type === 'interview_invitation').length, 1);
+    assert.equal((await request('GET', '/api/interviews/me', { as: seeker })).body.interviews[0].location, 'Room 341');
+    assert.deepEqual((await request('GET', '/api/interviews/me', { as: secondSeeker })).body.interviews, []);
+    assert.equal((await request('POST', path, { body: { ...body, location: 'Room 342' } })).status, 200);
+    alerts = (await request('GET', '/api/notifications', { as: seeker })).body.notifications;
+    assert.equal(alerts.filter(n => n.type === 'interview_invitation').length, 2);
+    assert.equal((await request('GET', '/api/interviews/me', { as: seeker })).body.interviews[0].location, 'Room 342');
+    assert.equal((await pool.query('SELECT status FROM applications WHERE id=$1', [applicationId])).rows[0].status, 'Interview');
+    assert.equal((await request('PATCH', `/api/applications/${applicationId}/status`, { as: seeker, body: { status: 'Offered' } })).status, 403);
+  });
+
+  await t.test('acceptance: opted-in deadline reminders are private, persistent and sent only once', async () => {
+    const path = `/api/recruiter/jobs/${otherJobId}/deadline`;
+    const body = { deadlineAt: new Date(Date.now() + 3600000).toISOString() };
+    assert.equal((await request('PATCH', path, { body, as: seeker })).status, 403);
+    assert.equal((await request('PATCH', path, { body })).status, 404);
+    assert.equal((await request('PATCH', path, { body: { deadlineAt: 'yesterday' }, as: otherRecruiter })).status, 400);
+    assert.equal((await request('PATCH', path, { body, as: otherRecruiter })).status, 200);
+    const reminder = `/api/jobs/${otherJobId}/reminder`;
+    assert.equal((await request('POST', reminder, { as: null })).status, 401);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await request('POST', reminder, { as: seeker })).status, 200);
+    const count = async as => (await request('GET', '/api/notifications', { as })).body.notifications.filter(n => n.type === 'deadline_reminder').length;
+    assert.equal(await count(secondSeeker), 1);
+    assert.equal(await count(secondSeeker), 1);
+    assert.equal(await count(seeker), 0, 'already-applied candidates do not receive deadline reminders');
+    assert.equal(await count(recruiter), 0);
+    assert.equal((await request('DELETE', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await pool.query('SELECT * FROM deadline_subscriptions WHERE user_id=$1 AND job_id=$2', [secondSeeker, otherJobId])).rowCount, 0);
+    // Expired postings cannot receive new applications even if the page was open beforehand.
+    await pool.query('UPDATE jobs SET deadline_at=$1 WHERE id=$2', [new Date(Date.now()-3600000), otherJobId]);
+    assert.equal((await request('POST', '/api/applications', { as: secondSeeker, body: { jobId: otherJobId } })).status, 404);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 404);
+    assert.equal((await request('PATCH', path, { body: { deadlineAt: null }, as: otherRecruiter })).status, 200);
   });
 
   await t.test('acceptance: archiving hides a posting from job seekers and keeps its applications', async () => {
