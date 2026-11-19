@@ -17,10 +17,14 @@ The currently implemented event is a successful application submission:
   transaction. Failed, closed-job, duplicate, or notification-write failures
   do not leave a partial application or notification.
 
-`application_status`, `interview_invitation`, and `deadline_reminder` are
-reserved notification types only. Their triggers are not implemented. In
-particular, `PATCH /api/applications/:id/status` remains applicant-owned and is
-not a recruiter event source.
+Additional events are implemented on the Sprint 3 readiness branch:
+
+- Recruiter status changes emit `application_status` in the same transaction.
+- Persisted interview schedules emit `interview_invitation`; identical retries do not duplicate alerts.
+- Candidates opt into `deadline_reminder` for a posting. Notification polling creates one alert per recipient/deadline during the last 24 hours, excluding closed jobs and candidates who already applied. This is in-app polling, not an email or background delivery service.
+- The old candidate status PATCH returns 403. Hiring decisions use the recruiter-owned route.
+
+See [scheduling and demo notes](readiness.md) for routes, migration and verification.
 
 ## REST endpoints
 
@@ -104,11 +108,8 @@ and concurrent processing cannot create duplicate alerts.
 The recruiter alert uses only `jobs.recruiter_id`; do not infer recruiter
 identity from company text, seeded job data, request payloads, or candidate
 accounts. Recruiter-driven status notifications must be integrated only with a
-recruiter-authorized route that verifies ownership of the job. The existing
-applicant-owned status PATCH route must not be used as that authorization
-boundary.
+recruiter-authorized route that verifies ownership of the job. The legacy candidate status PATCH route is disabled.
 
 Interview notifications require a persisted, real invitation and schedule.
 Deadline reminders require an agreed persisted deadline and recipient rule.
-Neither feature is triggered by this phase; no interview or deadline is
-invented.
+Scheduling uses migration `007_scheduling.sql`; dates and locations are supplied by the owning recruiter, and reminder recipients explicitly subscribe.

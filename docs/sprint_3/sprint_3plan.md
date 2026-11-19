@@ -47,3 +47,8 @@
 * Wire candidate dashboard to real backend analytics endpoints.
 * Write API integration tests for status transitions and route access guards.
 * Sprint demo: Live notification triggers, dashboard analytics, and working AI feedback draft.
+
+
+## November 19 integration update
+
+The `fix/sprint3-readiness` branch integrates candidate tracking with current main, repairs duplicate browser code/controls, secures hiring decisions, and adds persisted interview invitations and opt-in deadline reminders. All 64 automated tests pass locally with pg-mem and PostgreSQL 17. Browser verification covers submission through interview notification. Live Gemini verification still needs a configured API key. See [readiness notes](readiness.md) for the acceptance-test mapping, demo, migration, and remaining release/documentation steps. Team review and PR CI are pending; this update does not mark remote issues complete.
