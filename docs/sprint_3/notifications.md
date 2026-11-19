@@ -203,3 +203,12 @@ authorization boundary.
 
 Deadline reminders still require an agreed persisted deadline and recipient
 rule. No interview or deadline details are inferred or invented.
+
+
+## Candidate tracking and deadline integration
+
+The candidate dashboard also displays saved interview invitations alongside the earlier scheduling API. The recruiter dashboard uses the team's interview dialog. The legacy singular `/interview` scheduling endpoint is retained for compatibility with existing schedules; new invitations use `/interviews`.
+
+Candidates can subscribe with `POST /api/jobs/:id/reminder` or unsubscribe with DELETE. Owning recruiters set future deadlines with `PATCH /api/recruiter/jobs/:id/deadline`. Notification polling creates a private reminder in the last 24 hours, excludes candidates who already applied, and deduplicates by recipient and deadline. Expired deadlines block new applications. Migration `007_scheduling.sql` is additive and works alongside `007_interview_invitations.sql`.
+
+The legacy candidate-owned status PATCH is disabled; hiring decisions belong to the recruiter. See [readiness notes](readiness.md).

@@ -1,6 +1,6 @@
 // Job search and job listing endpoints (Sprint 2). These routes are public and read-only.
 const summaryColumns = 'id, title, company, location, category, employment_type AS "employmentType", salary, description, posted_at AS "postedAt"';
-const detailColumns = `${summaryColumns}, requirements`;
+const detailColumns = `${summaryColumns}, requirements, deadline_at AS "deadlineAt"`;
 const employmentTypes = ['Full-time', 'Part-time', 'Internship', 'Contract'];
 const filters = { q: 100, location: 100, category: 100, type: 20 };
 // Returns the trimmed search filters, or null when a value is not a single string within its length limit.

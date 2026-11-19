@@ -614,12 +614,10 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal(myApps.body.applications.length, 1);
   assert.equal(myApps.body.applications[0].jobTitle, 'Backend Developer Intern');
 
-  assert.equal((await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'InvalidStatus' }, token)).status, 400);
-  const updatedApp = await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'Interview' }, token);
-  assert.equal(updatedApp.status, 200);
-  assert.equal(updatedApp.body.application.status, 'Interview');
+  // Candidates cannot manufacture hiring decisions through the legacy endpoint.
+  assert.equal((await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'Offered' }, token)).status, 403);
+  assert.equal((await request('/api/applications/me?status=Applied', 'GET', undefined, token)).body.applications.length, 1);
 
-  assert.equal((await request('/api/applications/me?status=Interview', 'GET', undefined, token)).body.applications.length, 1);
   assert.equal((await request('/api/applications/me?status=Offered', 'GET', undefined, token)).body.applications.length, 0);
 
   await assert.rejects(pool.query('UPDATE profiles SET summary=$1 WHERE user_id=$2', ['x'.repeat(2001), id]));

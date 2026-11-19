@@ -5,17 +5,12 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-FRONTEND_PORT="${FRONTEND_PORT:-5500}"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:3000/api/health}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}/index.html}"
+FRONTEND_URL="${FRONTEND_URL:-http://localhost:3000/index.html}"
 BACKEND_PID=""
-FRONTEND_PID=""
 
 cleanup() {
     trap - EXIT INT TERM
-    if [[ -n "$FRONTEND_PID" ]]; then
-        kill "$FRONTEND_PID" 2>/dev/null || true
-    fi
     if [[ -n "$BACKEND_PID" ]]; then
         kill "$BACKEND_PID" 2>/dev/null || true
     fi
@@ -23,7 +18,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-for command in node npm docker curl python3; do
+for command in node npm docker curl; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Missing required command: $command" >&2
         exit 1
@@ -55,10 +50,6 @@ echo "Starting backend..."
 node --env-file=.env server.js &
 BACKEND_PID=$!
 
-echo "Starting frontend..."
-python3 -m http.server "$FRONTEND_PORT" --bind 127.0.0.1 --directory "$ROOT" &
-FRONTEND_PID=$!
-
 for attempt in $(seq 1 30); do
     if curl --fail --silent "$BACKEND_URL" >/dev/null 2>&1 && curl --fail --silent "$FRONTEND_URL" >/dev/null 2>&1; then
         break
@@ -89,4 +80,4 @@ if [[ "${1:-}" != "--no-browser" ]]; then
     fi
 fi
 
-wait "$BACKEND_PID" "$FRONTEND_PID"
+wait "$BACKEND_PID"

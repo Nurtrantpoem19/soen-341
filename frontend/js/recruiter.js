@@ -145,6 +145,30 @@ function renderPosting(job) {
     actions.append(applicationsButton, editButton, archiveButton);
     footer.append(actions);
     card.append(header, tags, footer);
+    const deadlineForm = element('form', 'scheduling-form');
+    const deadlineLabel = element('label', '', 'Application deadline (your local time)');
+    const deadlineInput = element('input');
+    deadlineInput.type = 'datetime-local';
+    deadlineInput.id = 'deadline-' + job.id;
+    deadlineLabel.htmlFor = deadlineInput.id;
+    if (job.deadlineAt) {
+        const date = new Date(job.deadlineAt);
+        deadlineInput.value = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    }
+    const deadlineSave = element('button', 'primary-button', 'Save deadline');
+    deadlineSave.type = 'submit';
+    const deadlineMessage = element('p'); deadlineMessage.setAttribute('role', 'status');
+    deadlineForm.append(deadlineLabel, deadlineInput, deadlineSave, deadlineMessage);
+    deadlineForm.addEventListener('submit', async event => {
+        event.preventDefault(); deadlineSave.disabled = true;
+        try {
+            const saved = await api('/jobs/' + job.id + '/deadline', { method: 'PATCH', body: { deadlineAt: deadlineInput.value ? new Date(deadlineInput.value).toISOString() : null } });
+            job.deadlineAt = saved.job.deadlineAt;
+            deadlineMessage.textContent = deadlineInput.value ? 'Deadline saved.' : 'Deadline removed.';
+        } catch (error) { deadlineMessage.textContent = error.message; }
+        finally { deadlineSave.disabled = false; }
+    });
+    card.append(deadlineForm);
     return card;
 }
 

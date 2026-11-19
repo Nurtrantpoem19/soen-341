@@ -429,6 +429,55 @@ test('recruiter dashboard and posting management', async t => {
     }
   });
 
+  await t.test('acceptance: interview invitations enforce ownership, persist and deduplicate retries', async () => {
+    const body = { scheduledAt: new Date(Date.now() + 86400000).toISOString(), location: 'Room 341' };
+    const path = `/api/recruiter/applications/${applicationId}/interview`;
+    assert.equal((await request('POST', path, { body, as: null })).status, 401);
+    assert.equal((await request('POST', path, { body, as: seeker })).status, 403);
+    assert.equal((await request('POST', path, { body, as: otherRecruiter })).status, 404);
+    for (const bad of [{ ...body, scheduledAt: '2020-01-01T10:00:00Z' }, { ...body, location: '' }, { ...body, scheduledAt: 'tomorrow' }]) {
+      assert.equal((await request('POST', path, { body: bad })).status, 400);
+    }
+    assert.equal((await request('POST', path, { body })).status, 200);
+    assert.equal((await request('POST', path, { body })).status, 200);
+    let alerts = (await request('GET', '/api/notifications', { as: seeker })).body.notifications;
+    assert.equal(alerts.filter(n => n.type === 'interview_invitation' && !n.dedupeKey.includes(':candidate:')).length, 1);
+    assert.equal((await request('GET', '/api/interviews/me', { as: seeker })).body.interviews[0].location, 'Room 341');
+    assert.deepEqual((await request('GET', '/api/interviews/me', { as: secondSeeker })).body.interviews, []);
+    assert.equal((await request('POST', path, { body: { ...body, location: 'Room 342' } })).status, 200);
+    alerts = (await request('GET', '/api/notifications', { as: seeker })).body.notifications;
+    assert.equal(alerts.filter(n => n.type === 'interview_invitation' && !n.dedupeKey.includes(':candidate:')).length, 2);
+    assert.equal((await request('GET', '/api/interviews/me', { as: seeker })).body.interviews[0].location, 'Room 342');
+    assert.equal((await pool.query('SELECT status FROM applications WHERE id=$1', [applicationId])).rows[0].status, 'Interview');
+    assert.equal((await request('PATCH', `/api/applications/${applicationId}/status`, { as: seeker, body: { status: 'Offered' } })).status, 403);
+  });
+
+  await t.test('acceptance: opted-in deadline reminders are private, persistent and sent only once', async () => {
+    const path = `/api/recruiter/jobs/${otherJobId}/deadline`;
+    const body = { deadlineAt: new Date(Date.now() + 3600000).toISOString() };
+    assert.equal((await request('PATCH', path, { body, as: seeker })).status, 403);
+    assert.equal((await request('PATCH', path, { body })).status, 404);
+    assert.equal((await request('PATCH', path, { body: { deadlineAt: 'yesterday' }, as: otherRecruiter })).status, 400);
+    assert.equal((await request('PATCH', path, { body, as: otherRecruiter })).status, 200);
+    const reminder = `/api/jobs/${otherJobId}/reminder`;
+    assert.equal((await request('POST', reminder, { as: null })).status, 401);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await request('POST', reminder, { as: seeker })).status, 200);
+    const count = async as => (await request('GET', '/api/notifications', { as })).body.notifications.filter(n => n.type === 'deadline_reminder').length;
+    assert.equal(await count(secondSeeker), 1);
+    assert.equal(await count(secondSeeker), 1);
+    assert.equal(await count(seeker), 0, 'already-applied candidates do not receive deadline reminders');
+    assert.equal(await count(recruiter), 0);
+    assert.equal((await request('DELETE', reminder, { as: secondSeeker })).status, 200);
+    assert.equal((await pool.query('SELECT * FROM deadline_subscriptions WHERE user_id=$1 AND job_id=$2', [secondSeeker, otherJobId])).rowCount, 0);
+    // Expired postings cannot receive new applications even if the page was open beforehand.
+    await pool.query('UPDATE jobs SET deadline_at=$1 WHERE id=$2', [new Date(Date.now()-3600000), otherJobId]);
+    assert.equal((await request('POST', '/api/applications', { as: secondSeeker, body: { jobId: otherJobId } })).status, 404);
+    assert.equal((await request('POST', reminder, { as: secondSeeker })).status, 404);
+    assert.equal((await request('PATCH', path, { body: { deadlineAt: null }, as: otherRecruiter })).status, 200);
+  });
+
   await t.test('acceptance: archiving hides a posting from job seekers and keeps its applications', async () => {
     const archive = (id, archived, as) => request('PATCH', `/api/recruiter/jobs/${id}/archive`, { body: { archived }, as });
     for (const archived of ['true', 1, null, undefined]) assert.equal((await archive(jobId, archived)).status, 400);

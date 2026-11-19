@@ -1,4 +1,5 @@
 const { notificationColumns } = require('../services/notifications');
+const { createDueReminders } = require('../services/deadline-reminders');
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -15,6 +16,7 @@ function readPositiveInteger(value) {
 function registerNotificationRoutes(app, pool, authenticateUser) {
     app.get('/api/notifications/unread-count', authenticateUser, async (req, res, next) => {
         try {
+            await createDueReminders(pool, req.user.id);
             const result = await pool.query(
                 `SELECT COUNT(*) AS count
                  FROM notifications
@@ -51,6 +53,7 @@ function registerNotificationRoutes(app, pool, authenticateUser) {
         parameters.push(limit + 1);
 
         try {
+            await createDueReminders(pool, req.user.id);
             const result = await pool.query(
                 `SELECT ${notificationColumns}
                  FROM notifications

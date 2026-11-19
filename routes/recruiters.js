@@ -7,7 +7,7 @@ const {
 // Every route requires a valid JWT and the recruiter role, and only ever touches the recruiter's own postings.
 const STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'];
-const jobColumns = 'id, title, company, location, category, employment_type AS "employmentType", salary, description, requirements, is_open AS "isOpen", posted_at AS "postedAt"';
+const jobColumns = 'id, title, company, location, category, employment_type AS "employmentType", salary, description, requirements, is_open AS "isOpen", posted_at AS "postedAt", deadline_at AS "deadlineAt"';
 // Field name -> [maximum length, required]. Limits match the CHECK constraints of the jobs table.
 const jobFields = {
   title: [200, true],
