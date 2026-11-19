@@ -1,3 +1,5 @@
+const { randomUUID } = require('node:crypto');
+
 const NOTIFICATION_TYPES = new Set([
     'application_submitted',
     'new_application',
@@ -119,9 +121,65 @@ async function createApplicationSubmissionNotifications(client, application, rec
     return { applicantNotification, recruiterNotification };
 }
 
+async function createApplicationStatusNotification(client, application, previousStatus, status) {
+    const { id, userId, jobId, jobTitle, company } = application;
+    return createNotification(client, {
+        userId,
+        type: 'application_status',
+        title: 'Application status updated',
+        message: `Your application for ${jobTitle} at ${company} moved from ${previousStatus} to ${status}.`,
+        link: `/frontend/job.html?id=${encodeURIComponent(jobId)}`,
+        applicationId: id,
+        jobId,
+        actorUserId: application.recruiterId,
+        dedupeKey: `application:${id}:status:${randomUUID()}`
+    });
+}
+
+async function createInterviewInvitationNotification(client, invitation) {
+    const {
+        id,
+        userId,
+        applicationId,
+        jobId,
+        jobTitle,
+        company,
+        recruiterId,
+        scheduledAt,
+        location,
+        meetingLink,
+        message: invitationMessage
+    } = invitation;
+    const scheduledLabel = new Date(scheduledAt).toLocaleString('en-CA', {
+        timeZone: 'UTC',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+    const details = [
+        `Interview invitation for ${jobTitle} at ${company}: ${scheduledLabel} UTC.`,
+        location ? `Location: ${location}.` : null,
+        meetingLink ? `Meeting link: ${meetingLink}` : null,
+        invitationMessage || null
+    ].filter(Boolean);
+
+    return createNotification(client, {
+        userId,
+        type: 'interview_invitation',
+        title: 'Interview invitation',
+        message: details.join(' '),
+        link: '/frontend/profile.html#interviews',
+        applicationId,
+        jobId,
+        actorUserId: recruiterId,
+        dedupeKey: `interview:${id}:candidate:${userId}`
+    });
+}
+
 module.exports = {
     NOTIFICATION_TYPES,
     notificationColumns,
     createNotification,
-    createApplicationSubmissionNotifications
+    createApplicationSubmissionNotifications,
+    createApplicationStatusNotification,
+    createInterviewInvitationNotification
 };

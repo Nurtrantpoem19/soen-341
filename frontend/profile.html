@@ -113,7 +113,16 @@
         </form>
         </section>
 
-        <section class="profile-previews" aria-labelledby="profile-previews-heading">
+        <section id="interviews" class="saved-profile-section interview-section" aria-labelledby="interview-heading">
+            <div class="profile-section-heading">
+                <h3 id="interview-heading">Interview invitations</h3>
+                <p>Interview schedules shared by recruiters for your applications.</p>
+            </div>
+            <p id="interview-status" class="preview-feedback" role="status" aria-live="polite">Loading invitations...</p>
+            <ul id="interview-list" class="interview-list"></ul>
+        </section>
+
+        <section class="profile-previews" aria-labelledby="profile-previews-heading" hidden>
             <div class="preview-notice" role="note">
                 <strong>Preview only — not saved to your account.</strong>
                 <span>

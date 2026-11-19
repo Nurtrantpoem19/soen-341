@@ -21,6 +21,45 @@ main h2 {
     margin: 0 auto;
 }
 
+.interview-section {
+    margin-top: 42px;
+}
+
+.interview-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.interview-item {
+    padding: 16px;
+    color: #fff;
+    border: 1px solid rgba(240, 203, 212, 0.28);
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+.interview-item h4 {
+    margin: 0 0 8px;
+    color: #fff;
+}
+
+.interview-item p {
+    margin: 6px 0;
+    line-height: 1.5;
+}
+
+.interview-item a {
+    color: #ffd7df;
+}
+
+.interview-item a:focus-visible {
+    outline: 3px solid #f4c7d2;
+    outline-offset: 3px;
+}
+
 .profile-section-heading {
     margin: 0 0 20px;
     text-align: left;

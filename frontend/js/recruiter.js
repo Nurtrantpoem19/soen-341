@@ -20,11 +20,17 @@ const dialog = document.getElementById("posting-dialog");
 const postingForm = document.getElementById("posting-form");
 const postingError = document.getElementById("posting-error");
 const postingSave = document.getElementById("posting-save");
+const interviewDialog = document.getElementById("interview-dialog");
+const interviewForm = document.getElementById("interview-form");
+const interviewCandidate = document.getElementById("interview-candidate");
+const interviewError = document.getElementById("interview-error");
+const interviewSend = document.getElementById("interview-send");
 
 let postings = [];
 let view = "active";
 let editingId = null;
 let selectedJobId = null;
+let invitingApplicationId = null;
 
 function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -307,30 +313,56 @@ function renderApplication(application) {
 
     const control = element("div", "status-control");
     control.append(label, select, feedback);
-    footer.append(control);
-    card.append(header, tags, letter, footer);
-    const interviewForm = element('form', 'scheduling-form');
-    const timeLabel = element('label', '', 'Interview time (your local time)');
-    const time = element('input'); time.type = 'datetime-local'; time.required = true;
-    time.id = 'interview-time-' + application.id; timeLabel.htmlFor = time.id;
-    const placeLabel = element('label', '', 'Location or meeting link');
-    const place = element('input'); place.type = 'text'; place.required = true; place.maxLength = 500;
-    place.id = 'interview-place-' + application.id; placeLabel.htmlFor = place.id;
-    const send = element('button', 'primary-button', 'Send or reschedule interview'); send.type = 'submit';
-    const message = element('p'); message.setAttribute('role', 'status');
-    interviewForm.append(timeLabel, time, placeLabel, place, send, message);
-    interviewForm.addEventListener('submit', async event => {
-        event.preventDefault(); send.disabled = true;
-        try {
-            const data = await api('/applications/' + application.id + '/interview', { method: 'POST', body: { scheduledAt: new Date(time.value).toISOString(), location: place.value } });
-            message.textContent = data.message; select.value = 'Interview'; application.status = 'Interview';
-            await loadPostings();
-        } catch (error) { message.textContent = error.message; }
-        finally { send.disabled = false; }
+    const inviteButton = element("button", "link-button", "Invite to interview");
+    inviteButton.type = "button";
+    inviteButton.addEventListener("click", function () {
+        invitingApplicationId = application.id;
+        interviewCandidate.textContent = "For " + name;
+        interviewError.textContent = "";
+        interviewForm.reset();
+        interviewDialog.showModal();
+        document.getElementById("interview-date").focus();
     });
-    card.append(interviewForm);
+    footer.append(control, inviteButton);
+    card.append(header, tags, letter, footer);
     return card;
 }
+
+interviewForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    interviewError.textContent = "";
+    const date = interviewForm.elements.date.value;
+    const time = interviewForm.elements.time.value;
+    const localDate = new Date(date + "T" + time);
+    if (!date || !time || Number.isNaN(localDate.getTime()) || localDate <= new Date()) {
+        interviewError.textContent = "Choose a future interview date and time.";
+        return;
+    }
+
+    interviewSend.disabled = true;
+    try {
+        await api("/applications/" + invitingApplicationId + "/interviews", {
+            method: "POST",
+            body: {
+                scheduledAt: localDate.toISOString(),
+                location: interviewForm.elements.location.value,
+                meetingLink: interviewForm.elements.meetingLink.value,
+                message: interviewForm.elements.message.value
+            }
+        });
+        interviewDialog.close();
+        applicationsStatus.hidden = false;
+        applicationsStatus.textContent = "Interview invitation sent to " + interviewCandidate.textContent.replace("For ", "") + ".";
+    } catch (error) {
+        interviewError.textContent = error.message;
+    } finally {
+        interviewSend.disabled = false;
+    }
+});
+
+document.getElementById("interview-cancel").addEventListener("click", function () {
+    interviewDialog.close();
+});
 
 STATUSES.forEach(function (status) { filterStatus.append(new Option(status, status)); });
 filterForm.addEventListener("submit", function (event) {

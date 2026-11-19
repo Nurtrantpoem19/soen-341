@@ -1,8 +1,11 @@
+const {
+  createApplicationStatusNotification,
+  createInterviewInvitationNotification
+} = require('../services/notifications');
+
 // Recruiter dashboard and posting management (Sprint 3).
 // Every route requires a valid JWT and the recruiter role, and only ever touches the recruiter's own postings.
 const STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
-const { randomUUID } = require('node:crypto');
-const { createNotification } = require('../services/notifications');
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'];
 const jobColumns = 'id, title, company, location, category, employment_type AS "employmentType", salary, description, requirements, is_open AS "isOpen", posted_at AS "postedAt", deadline_at AS "deadlineAt"';
 // Field name -> [maximum length, required]. Limits match the CHECK constraints of the jobs table.
@@ -34,6 +37,57 @@ function validateJob(body) {
 function readId(value) {
   const id = Number(value);
   return /^\d+$/.test(value) && Number.isSafeInteger(id) && id >= 1 && id <= 2147483647 ? id : null;
+}
+
+function validateInterviewInvitation(body, now = new Date()) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (typeof body.scheduledAt !== 'string') return null;
+  const dateTime = body.scheduledAt.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/
+  );
+  if (!dateTime) return null;
+  const [, year, month, day, hour, minute, second = '0'] = dateTime;
+  const localDate = new Date(0);
+  localDate.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+  localDate.setUTCHours(Number(hour), Number(minute), Number(second), 0);
+  if (
+    localDate.getUTCFullYear() !== Number(year) ||
+    localDate.getUTCMonth() !== Number(month) - 1 ||
+    localDate.getUTCDate() !== Number(day) ||
+    Number(hour) > 23 ||
+    Number(minute) > 59 ||
+    Number(second) > 59
+  ) return null;
+
+  const scheduledAt = new Date(body.scheduledAt);
+  if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= now) return null;
+
+  const optionalText = (value, limit) => {
+    if (value === undefined) return '';
+    if (typeof value !== 'string' || [...value.trim()].length > limit) return null;
+    return value.trim();
+  };
+  const location = optionalText(body.location, 250);
+  const message = optionalText(body.message, 700);
+  const meetingLink = optionalText(body.meetingLink, 500);
+  if (location === null || message === null || meetingLink === null) return null;
+
+  if (meetingLink) {
+    let url;
+    try {
+      url = new URL(meetingLink);
+    } catch (error) {
+      return null;
+    }
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null;
+  }
+
+  return {
+    scheduledAt: scheduledAt.toISOString(),
+    location: location || null,
+    meetingLink: meetingLink || null,
+    message: message || null
+  };
 }
 
 // Accepts YYYY-MM-DD only and returns the UTC midnight of that day (plus addDays), or null when invalid.
@@ -172,14 +226,22 @@ function registerRecruiterRoutes(app, pool, authenticateUser) {
     if (typeof status !== 'string' || !STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Provide a valid status: Applied, Under Review, Interview, Offered, or Rejected.' });
     }
+
     let client;
     let transactionOpen = false;
     try {
       client = await pool.connect();
       await client.query('BEGIN');
       transactionOpen = true;
+
       const owned = await client.query(
-        'SELECT a.* FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id=$1 AND j.recruiter_id=$2 FOR UPDATE',
+        `SELECT a.id, a.user_id AS "userId", a.job_id AS "jobId",
+                a.job_title AS "jobTitle", a.company, a.status,
+                j.recruiter_id AS "recruiterId"
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+         WHERE a.id=$1 AND j.recruiter_id=$2
+         FOR UPDATE`,
         [id, req.user.id]
       );
       if (!owned.rowCount) {
@@ -187,38 +249,142 @@ function registerRecruiterRoutes(app, pool, authenticateUser) {
         transactionOpen = false;
         return res.status(404).json({ message: 'Application not found.' });
       }
-      const previous = owned.rows[0];
-      if (previous.status === status) {
-        await client.query('COMMIT');
-        transactionOpen = false;
-        return res.json({ message: 'Application status unchanged.', application: {
-          id: previous.id, jobId: previous.job_id, status: previous.status,
-          appliedAt: previous.applied_at, updatedAt: previous.updated_at
-        } });
-      }
+
+      const application = owned.rows[0];
       const result = await client.query(
         'UPDATE applications SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING id, job_id AS "jobId", status, applied_at AS "appliedAt", updated_at AS "updatedAt"',
         [status, id]
       );
-      await createNotification(client, {
-        userId: previous.user_id,
-        type: 'application_status',
-        title: 'Application status updated',
-        message: `Your application for ${previous.job_title} at ${previous.company} is now ${status}.`,
-        link: `/frontend/job.html?id=${encodeURIComponent(previous.job_id)}`,
-        applicationId: id, jobId: previous.job_id, actorUserId: req.user.id,
-        dedupeKey: `application:${id}:status:${randomUUID()}`
-      });
+      if (!result.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Application not found.' });
+      }
+      if (application.status !== status) {
+        await createApplicationStatusNotification(client, application, application.status, status);
+      }
+
       await client.query('COMMIT');
       transactionOpen = false;
       res.json({ message: 'Application status updated.', application: result.rows[0] });
     } catch (error) {
       if (transactionOpen) {
-        try { await client.query('ROLLBACK'); } catch (rollbackError) { return next(rollbackError); }
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          return next(rollbackError);
+        }
       }
       next(error);
-    } finally { if (client) client.release(); }
+    } finally {
+      if (client) client.release();
+    }
+  });
+
+  app.post('/api/recruiter/applications/:id/interviews', recruiter, async (req, res, next) => {
+    const applicationId = readId(req.params.id);
+    if (!applicationId) return res.status(400).json({ message: 'Invalid application ID.' });
+    const invitation = validateInterviewInvitation(req.body);
+    if (!invitation) {
+      return res.status(400).json({
+        message: 'Provide a future scheduledAt ISO timestamp with a timezone, optional location (250 characters), HTTPS meetingLink (500 characters), and message (700 characters).'
+      });
+    }
+
+    let client;
+    let transactionOpen = false;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+      transactionOpen = true;
+
+      const applicationResult = await client.query(
+        `SELECT a.id AS "applicationId", a.user_id AS "userId", a.job_id AS "jobId",
+                a.job_title AS "jobTitle", a.company, j.recruiter_id AS "recruiterId"
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+         WHERE a.id=$1 AND j.recruiter_id=$2
+         FOR UPDATE`,
+        [applicationId, req.user.id]
+      );
+      if (!applicationResult.rowCount) {
+        await client.query('ROLLBACK');
+        transactionOpen = false;
+        return res.status(404).json({ message: 'Application not found.' });
+      }
+
+      const application = applicationResult.rows[0];
+      const inserted = await client.query(
+        `INSERT INTO interview_invitations
+           (application_id, recruiter_id, scheduled_at, location, meeting_link, message)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, application_id AS "applicationId", scheduled_at AS "scheduledAt",
+                   location, meeting_link AS "meetingLink", message,
+                   created_at AS "createdAt"`,
+        [
+          application.applicationId,
+          req.user.id,
+          invitation.scheduledAt,
+          invitation.location,
+          invitation.meetingLink,
+          invitation.message
+        ]
+      );
+      const savedInvitation = {
+        ...inserted.rows[0],
+        userId: application.userId,
+        jobId: application.jobId,
+        jobTitle: application.jobTitle,
+        company: application.company,
+        recruiterId: application.recruiterId
+      };
+      await createInterviewInvitationNotification(client, savedInvitation);
+      await client.query('COMMIT');
+      transactionOpen = false;
+
+      res.status(201).json({ invitation: inserted.rows[0] });
+    } catch (error) {
+      if (transactionOpen) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          return next(rollbackError);
+        }
+      }
+      if (error.code === '23505') {
+        return res.status(409).json({ message: 'An invitation already exists for this application and interview time.' });
+      }
+      next(error);
+    } finally {
+      if (client) client.release();
+    }
+  });
+
+  app.get('/api/applications/me/interviews', authenticateUser, async (req, res, next) => {
+    try {
+      const result = await pool.query(
+        `SELECT i.id, i.application_id AS "applicationId", a.job_id AS "jobId",
+                a.job_title AS "jobTitle", a.company,
+                i.scheduled_at AS "scheduledAt", i.location,
+                i.meeting_link AS "meetingLink", i.message,
+                i.created_at AS "createdAt"
+         FROM interview_invitations i
+         JOIN applications a ON a.id = i.application_id
+         WHERE a.user_id = $1
+         ORDER BY i.scheduled_at ASC, i.id ASC`,
+        [req.user.id]
+      );
+      res.json({ invitations: result.rows });
+    } catch (error) {
+      next(error);
+    }
   });
 }
 
-module.exports = { registerRecruiterRoutes, validateJob, readDate, summarizePostings };
+module.exports = {
+  registerRecruiterRoutes,
+  validateJob,
+  readDate,
+  summarizePostings,
+  validateInterviewInvitation
+};
