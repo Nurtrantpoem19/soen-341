@@ -124,15 +124,6 @@ function registerRecruiterRoutes(app, pool, authenticateUser) {
   }
   const recruiter = [authenticateUser, requireRecruiter];
 
-  // Lets the frontend know who is logged in and which pages to show.
-  app.get('/api/auth/me', authenticateUser, async (req, res, next) => {
-    try {
-      const result = await pool.query('SELECT id, email, role FROM users WHERE id=$1', [req.user.id]);
-      if (!result.rowCount) return res.status(401).json({ message: 'Authentication required.' });
-      res.json({ user: result.rows[0] });
-    } catch (error) { next(error); }
-  });
-
   // All postings of the logged-in recruiter (active and archived) with application counts.
   app.get('/api/recruiter/jobs', recruiter, async (req, res, next) => {
     try {

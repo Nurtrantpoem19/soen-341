@@ -92,7 +92,7 @@
                     }
                 });
             } catch (error) {
-                throw new Error("Unable to connect to the server. Please try again.");
+                throw new Error("Unable to connect to the server. Please try again.", { cause: error });
             }
 
             if (response.status === 401) {
@@ -105,7 +105,7 @@
                 data = await response.json();
             } catch (error) {
                 if (response.ok) {
-                    throw new Error("The server returned an invalid notification response.");
+                    throw new Error("The server returned an invalid notification response.", { cause: error });
                 }
                 data = null;
             }

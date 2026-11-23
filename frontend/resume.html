@@ -28,7 +28,7 @@
                 <span class="section-icon" aria-hidden="true">01</span>
                 <div>
                     <h2 id="upload-heading">Upload your resume</h2>
-                    <p>Choose a PDF file up to 5 MB.</p>
+                    <p>Choose a PDF or DOCX file up to 5 MB.</p>
                 </div>
             </div>
 
@@ -38,28 +38,28 @@
                     type="file"
                     id="resume-file"
                     name="resume"
-                    accept=".pdf,application/pdf"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     aria-describedby="file-guidance file-details upload-status"
                 >
                 <input
                     class="visually-hidden"
                     type="file"
                     id="replacement-file"
-                    accept=".pdf,application/pdf"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     aria-hidden="true"
                     tabindex="-1"
                 >
                 <label class="file-picker" for="resume-file">
                     <span class="upload-icon" aria-hidden="true">↑</span>
-                    <span class="file-picker-title">Choose a PDF from your device</span>
-                    <span class="file-picker-hint">PDF only · Maximum size 5 MB</span>
+                    <span class="file-picker-title">Choose a PDF or DOCX from your device</span>
+                    <span class="file-picker-hint">PDF or DOCX · Maximum size 5 MB</span>
                 </label>
 
                 <p id="file-guidance" class="file-guidance">
                     For your privacy, the selected file stays on this page until you submit it.
                 </p>
                 <div id="file-details" class="file-details" hidden>
-                    <span class="file-symbol" aria-hidden="true">PDF</span>
+                    <span class="file-symbol" id="file-symbol" aria-hidden="true">PDF</span>
                     <span class="file-copy">
                         <span id="file-name" class="file-name"></span>
                         <span id="file-size" class="file-size"></span>
@@ -146,8 +146,8 @@
         </section>
 
         <p class="privacy-note">
-            Uploaded resumes are saved to your CareerConnect account. You can view and download
-            them here, and replace a saved resume whenever it needs an update.
+            Uploaded resumes are saved to your CareerConnect account. You can view, download,
+            replace, or delete a saved resume whenever it needs an update.
         </p>
     </main>
 

@@ -1,5 +1,6 @@
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const PDF_MIME_TYPE = "application/pdf";
+const DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const RESUME_API_URL = "http://localhost:3000/api/resumes";
 const TOKEN_KEY = "careerconnect_token";
 
@@ -7,6 +8,7 @@ const resumeForm = document.getElementById("resume-form");
 const resumeInput = document.getElementById("resume-file");
 const replacementInput = document.getElementById("replacement-file");
 const fileDetails = document.getElementById("file-details");
+const fileSymbol = document.getElementById("file-symbol");
 const fileName = document.getElementById("file-name");
 const fileSize = document.getElementById("file-size");
 const removeFileButton = document.getElementById("remove-file");
@@ -58,20 +60,28 @@ function formatFileSize(bytes) {
 }
 
 function validateFile(file) {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-        return "Choose a PDF file. Other file types are not supported.";
+    const lowerName = file.name.toLowerCase();
+    const isPdf = lowerName.endsWith(".pdf");
+    const isDocx = lowerName.endsWith(".docx");
+
+    if (!isPdf && !isDocx) {
+        return "Choose a PDF or DOCX file. Other file types are not supported.";
     }
 
-    if (file.type && file.type.toLowerCase() !== PDF_MIME_TYPE) {
-        return "This file is not identified as a PDF. Choose a valid PDF file.";
+    const mime = (file.type || "").toLowerCase();
+    if (isPdf && mime && mime !== PDF_MIME_TYPE) {
+        return "This file is not identified as a PDF. Choose a valid PDF or DOCX file.";
+    }
+    if (isDocx && mime && mime !== DOCX_MIME_TYPE) {
+        return "This file is not identified as a DOCX document. Choose a valid PDF or DOCX file.";
     }
 
     if (file.size === 0) {
-        return "This file is empty. Choose a PDF that contains content.";
+        return "This file is empty. Choose a file that contains content.";
     }
 
     if (file.size > MAX_FILE_SIZE) {
-        return "This file is larger than 5 MB. Choose a smaller PDF.";
+        return "This file is larger than 5 MB. Choose a smaller file.";
     }
 
     return "";
@@ -125,9 +135,17 @@ function renderResumes(resumes) {
             selectReplacementResume(resume, replaceButton);
         });
 
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "resume-delete-button";
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", function () {
+            deleteResume(resume, deleteButton);
+        });
+
         const actions = document.createElement("div");
         actions.className = "resume-actions";
-        actions.append(downloadButton, replaceButton);
+        actions.append(downloadButton, replaceButton, deleteButton);
 
         item.append(details, actions);
         resumeList.append(item);
@@ -293,6 +311,45 @@ async function replaceResume(resumeId, resumeName, file, button) {
     }
 }
 
+async function deleteResume(resume, button) {
+    const token = getToken();
+    if (!token) {
+        showResumeListStatus("Please log in before deleting a resume.");
+        return;
+    }
+
+    if (!window.confirm(`Delete "${resume.original_name}"? This cannot be undone.`)) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+    showResumeListStatus("Deleting your resume...", "info");
+
+    try {
+        const response = await fetch(`${RESUME_API_URL}/${encodeURIComponent(resume.id)}`, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(await getErrorMessage(response, "Your resume could not be deleted."));
+        }
+
+        await getResponseData(response);
+        if (await loadResumes()) {
+            showResumeListStatus("Your resume was deleted.", "success");
+        }
+    } catch (error) {
+        showResumeListStatus(error.message || "Unable to delete your resume. Please try again.");
+    } finally {
+        button.textContent = "Delete";
+        button.disabled = false;
+    }
+}
+
 function clearSelectedFile() {
     resumeInput.value = "";
     fileDetails.hidden = true;
@@ -318,6 +375,7 @@ resumeInput.addEventListener("change", function () {
         return;
     }
 
+    fileSymbol.textContent = file.name.toLowerCase().endsWith(".docx") ? "DOCX" : "PDF";
     fileName.textContent = file.name;
     fileSize.textContent = formatFileSize(file.size);
     fileDetails.hidden = false;
@@ -366,7 +424,7 @@ resumeForm.addEventListener("submit", async function (event) {
 
     const file = resumeInput.files && resumeInput.files[0];
     if (!file) {
-        showStatus("Choose a PDF file before continuing.");
+        showStatus("Choose a PDF or DOCX file before continuing.");
         return;
     }
 
