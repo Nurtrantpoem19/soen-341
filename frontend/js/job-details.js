@@ -1,8 +1,14 @@
 const API_URL = "http://localhost:3000/api/jobs";
+const TOKEN_KEY = "careerconnect_token";
+const ROLE_KEY = "careerconnect_role";
 
 const detailsStatus = document.getElementById("details-status");
 const jobDetails = document.getElementById("job-details");
 const backLink = document.getElementById("back-to-search");
+const matchCard = document.getElementById("match-card");
+const applyCard = document.getElementById("apply-card");
+const recruiterNotice = document.getElementById("recruiter-view-notice");
+const loginHint = document.getElementById("login-hint");
 const applyButton = document.getElementById("apply-button");
 const applyStatus = document.getElementById("apply-status");
 const requirementsSection = document.getElementById("requirements-section");
@@ -17,10 +23,29 @@ const matchSummary = document.getElementById("match-summary");
 const matchedSkills = document.getElementById("matched-skills");
 const missingSkills = document.getElementById("missing-skills");
 
+let currentJob = null;
+
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+}
+
+function isRecruiterSession() {
+    return Boolean(getToken()) && sessionStorage.getItem(ROLE_KEY) === "recruiter";
+}
+
+function clearSession() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(ROLE_KEY);
+    loginHint.hidden = false;
+    matchResume.disabled = true;
+    matchButton.disabled = true;
+}
+
 const applicationApi = {
     async submitApplication(job) {
         const token = getToken();
         if (!token) {
+            loginHint.hidden = false;
             throw new Error("Please log in before applying.");
         }
 
@@ -35,6 +60,11 @@ const applicationApi = {
 
         const data = await response.json();
 
+        if (response.status === 401) {
+            clearSession();
+            throw new Error("Your session has expired. Please log in again.");
+        }
+
         if (!response.ok) {
             throw new Error(data.message || "Unable to submit application.");
         }
@@ -42,13 +72,6 @@ const applicationApi = {
         return data.application;
     }
 };
-
-let currentJob = null;
-const TOKEN_KEY = "careerconnect_token";
-
-function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY);
-}
 
 function formatDate(value) {
     return new Date(value).toLocaleDateString("en-CA", {
@@ -71,6 +94,15 @@ function showError(message) {
 function showApplyStatus(message, state = "error") {
     applyStatus.textContent = message;
     applyStatus.dataset.state = state;
+}
+
+function syncRoleView() {
+    const recruiter = isRecruiterSession();
+    matchCard.hidden = recruiter;
+    applyCard.hidden = recruiter;
+    recruiterNotice.hidden = !recruiter;
+    loginHint.hidden = Boolean(getToken());
+    return recruiter;
 }
 
 function renderJob(job) {
@@ -100,7 +132,10 @@ function renderJob(job) {
 
     detailsStatus.hidden = true;
     jobDetails.hidden = false;
-    loadMatchData(job.id);
+
+    if (!syncRoleView()) {
+        loadMatchData(job.id);
+    }
 }
 
 function setMatchStatus(message, state = "error") {
@@ -141,6 +176,11 @@ async function loadMatchData(jobId) {
             headers: { Authorization: `Bearer ${token}` }
         });
         const resumesData = await resumesResponse.json();
+        if (resumesResponse.status === 401) {
+            clearSession();
+            setMatchStatus("Your session has expired. Please log in again.");
+            return;
+        }
         if (!resumesResponse.ok) {
             setMatchStatus(resumesData.message || "Unable to load your resumes.");
             return;
@@ -167,6 +207,11 @@ async function loadMatchData(jobId) {
         const matchResponse = await fetch(`http://localhost:3000/api/jobs/${jobId}/match`, {
             headers: { Authorization: `Bearer ${token}` }
         });
+        if (matchResponse.status === 401) {
+            clearSession();
+            setMatchStatus("Your session has expired. Please log in again.");
+            return;
+        }
         if (matchResponse.ok) {
             renderMatch(await matchResponse.json());
         }
@@ -221,6 +266,7 @@ matchForm.addEventListener("submit", async function (event) {
     }
     const token = getToken();
     if (!token) {
+        loginHint.hidden = false;
         setMatchStatus("Log in to match a resume.");
         return;
     }
@@ -237,6 +283,11 @@ matchForm.addEventListener("submit", async function (event) {
             body: JSON.stringify({ resumeId: Number(matchResume.value) })
         });
         const data = await response.json();
+        if (response.status === 401) {
+            clearSession();
+            setMatchStatus("Your session has expired. Please log in again.");
+            return;
+        }
         if (!response.ok) {
             setMatchStatus(data.message || "Unable to match this resume.");
             return;

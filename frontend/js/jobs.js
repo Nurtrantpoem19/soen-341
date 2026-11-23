@@ -1,18 +1,26 @@
 const API_URL = "http://localhost:3000/api/jobs";
-const FILTER_NAMES = ["q", "location", "category", "type"];
+const FILTER_NAMES = ["q", "location", "category", "type", "sort"];
+const DEFAULT_SORT = "newest";
 
 const searchForm = document.getElementById("search-form");
 const keywordInput = document.getElementById("keyword");
 const locationInput = document.getElementById("location");
 const categorySelect = document.getElementById("category");
 const typeSelect = document.getElementById("type");
+const sortSelect = document.getElementById("sort");
 const searchButton = document.getElementById("search-button");
 const clearButton = document.getElementById("clear-filters");
 const resultsCount = document.getElementById("results-count");
 const searchStatus = document.getElementById("search-status");
 const jobList = document.getElementById("job-list");
 
-const fields = { q: keywordInput, location: locationInput, category: categorySelect, type: typeSelect };
+const fields = {
+    q: keywordInput,
+    location: locationInput,
+    category: categorySelect,
+    type: typeSelect,
+    sort: sortSelect
+};
 
 // Each search gets a number so a slow, older response never replaces newer results.
 let latestSearch = 0;
@@ -43,9 +51,13 @@ function readFilters() {
     const filters = {};
     FILTER_NAMES.forEach(function (name) {
         const value = fields[name].value.trim();
-        if (value) {
-            filters[name] = value;
+        if (!value) {
+            return;
         }
+        if (name === "sort" && value === DEFAULT_SORT) {
+            return;
+        }
+        filters[name] = value;
     });
     return filters;
 }
@@ -104,7 +116,10 @@ function createJobCard(job) {
     details.className = "job-details-link";
     details.href = link.href;
     details.setAttribute("aria-label", `View details for ${job.title} at ${job.company}`);
-    details.innerHTML = 'View details <span aria-hidden="true">→</span>';
+    const arrow = document.createElement("span");
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "→";
+    details.append(document.createTextNode("View details "), arrow);
     footer.append(posted, details);
 
     item.append(header, description, tags, footer);
@@ -151,7 +166,8 @@ async function searchJobs() {
             return;
         }
 
-        renderJobs(data.jobs, Object.keys(filters).length > 0);
+        const hasSearchFilters = Boolean(filters.q || filters.location || filters.category || filters.type);
+        renderJobs(data.jobs, hasSearchFilters);
     } catch (error) {
         if (searchNumber !== latestSearch) {
             return;
@@ -186,13 +202,13 @@ searchForm.addEventListener("submit", function (event) {
     searchJobs();
 });
 
-[categorySelect, typeSelect].forEach(function (select) {
+[categorySelect, typeSelect, sortSelect].forEach(function (select) {
     select.addEventListener("change", searchJobs);
 });
 
 clearButton.addEventListener("click", function () {
     FILTER_NAMES.forEach(function (name) {
-        fields[name].value = "";
+        fields[name].value = name === "sort" ? DEFAULT_SORT : "";
     });
     keywordInput.focus();
     searchJobs();
