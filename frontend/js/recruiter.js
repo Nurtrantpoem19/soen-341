@@ -65,7 +65,7 @@ async function api(path, options = {}) {
             body: options.body === undefined ? undefined : JSON.stringify(options.body)
         });
     } catch (error) {
-        throw new Error("Unable to connect to the server. Please try again.");
+        throw new Error("Unable to connect to the server. Please try again.", { cause: error });
     }
     const data = await response.json().catch(function () { return {}; });
     if (response.status === 401) {

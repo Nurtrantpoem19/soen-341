@@ -53,7 +53,7 @@ async function createNotification(client, notification) {
         try {
             parsedLink = new URL(link, 'http://careerconnect.local');
         } catch (error) {
-            throw new TypeError('Notification link must be an internal path.');
+            throw new TypeError('Notification link must be an internal path.', { cause: error });
         }
         if (
             typeof link !== 'string' ||

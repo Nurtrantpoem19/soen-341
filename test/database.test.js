@@ -25,7 +25,6 @@ test('database migrations, constraints and API persistence', async t => {
   let cleanupId;
   let secondCleanupId;
   let applicationJobId;
-  let uploadedResumeId;
   let uploadedResumePath;
   let server;
 
@@ -131,7 +130,6 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal(resumeUpload.status, 201);
 
   const uploadedResume = await resumeUpload.json();
-  uploadedResumeId = uploadedResume.resume.id;
 
   assert.equal(uploadedResume.message, 'Resume uploaded successfully.');
   assert.equal(uploadedResume.resume.original_name, 'automated-test-resume.pdf');
@@ -236,10 +234,6 @@ test('database migrations, constraints and API persistence', async t => {
     [uploadedResume.resume.id]
   );
   uploadedResumePath = resumeOwnerCheck.rows[0].storage_path;
-
-  const path = require('node:path');
-
-  const resumeDirectory = path.join(__dirname, '..', 'uploads', 'resumes');
 
   // Resume endpoints must require authentication
   const protectedEndpoints = [

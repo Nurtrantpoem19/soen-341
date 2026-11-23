@@ -170,7 +170,7 @@ function createApp(pool, { resumeFeedback = createResumeFeedbackService() } = {}
     }
   });
 
-  app.use((error, req, res, next) => {
+  app.use((error, req, res, _next) => {
     if (error.type === 'entity.parse.failed') {
       return res.status(400).json({ message: 'Invalid JSON.' });
     }

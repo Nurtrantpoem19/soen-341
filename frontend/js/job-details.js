@@ -111,49 +111,6 @@ function setMatchStatus(message, state = "error") {
 function renderMatch(match) {
     const feedback = match.feedback || {};
     const jobMatch = feedback.jobMatch;
-    if (!jobMatch) return;
-    matchScore.textContent = `${jobMatch.score}%`;
-    matchSummary.textContent = feedback.summary || "";
-    matchedSkills.replaceChildren(...jobMatch.matchedSkills.map(function (skill) {
-        const item = document.createElement("li"); item.textContent = skill; return item;
-    }));
-    missingSkills.replaceChildren(...jobMatch.missingSkills.map(function (skill) {
-        const item = document.createElement("li"); item.textContent = skill; return item;
-    }));
-    matchResult.hidden = false;
-}
-
-async function loadMatchData(jobId) {
-    const token = getToken();
-    if (!token) { setMatchStatus("Log in and save profile skills before matching a resume."); return; }
-    try {
-        const resumesResponse = await fetch("http://localhost:3000/api/resumes", { headers: { Authorization: `Bearer ${token}` } });
-        const resumesData = await resumesResponse.json();
-        if (!resumesResponse.ok) { setMatchStatus(resumesData.message || "Unable to load your resumes."); return; }
-        matchResume.replaceChildren();
-        if (!resumesData.resumes.length) {
-            const option = document.createElement("option"); option.value = ""; option.textContent = "Upload a resume first";
-            matchResume.append(option); setMatchStatus("Upload a resume to enable AI matching."); return;
-        }
-        resumesData.resumes.forEach(function (resume) {
-            const option = document.createElement("option"); option.value = resume.id; option.textContent = resume.original_name;
-            matchResume.append(option);
-        });
-        matchResume.disabled = false; matchButton.disabled = false; setMatchStatus("");
-        const matchResponse = await fetch(`http://localhost:3000/api/jobs/${jobId}/match`, { headers: { Authorization: `Bearer ${token}` } });
-        if (matchResponse.ok) renderMatch(await matchResponse.json());
-    } catch (error) { setMatchStatus("Unable to load your resume or previous match."); }
-    loadMatchData(job.id);
-}
-
-function setMatchStatus(message, state = "error") {
-    matchStatus.textContent = message;
-    matchStatus.dataset.state = state;
-}
-
-function renderMatch(match) {
-    const feedback = match.feedback || {};
-    const jobMatch = feedback.jobMatch;
     if (!jobMatch) {
         matchResult.hidden = true;
         return;
