@@ -1,27 +1,21 @@
 const registerForm = document.getElementById("register-form");
-const nameInput = document.getElementById("name");
 const emailInput = document.getElementById("register-email");
 const passwordInput = document.getElementById("register-password");
 const confirmPasswordInput = document.getElementById("confirm-password");
+const roleSelect = document.getElementById("role");
 const errorMessage = document.getElementById("error-message");
 const registerButton = document.getElementById("register-button");
 
 registerForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
-    const name = nameInput.value.trim();
     const email = emailInput.value.trim();
     const password = passwordInput.value;
     const confirmPassword = confirmPasswordInput.value;
 
     errorMessage.textContent = "";
 
-    if (
-        name === "" ||
-        email === "" ||
-        password === "" ||
-        confirmPassword === ""
-    ) {
+    if (email === "" || password === "" || confirmPassword === "") {
         errorMessage.textContent = "Please complete all fields.";
         return;
     }
@@ -33,7 +27,7 @@ registerForm.addEventListener("submit", async function (event) {
 
     if (password.length < 8 || new TextEncoder().encode(password).length > 72) {
         errorMessage.textContent =
-            "Password must be at least 8 characters.";
+            "Password must be between 8 characters and 72 bytes.";
         return;
     }
 
@@ -56,7 +50,7 @@ registerForm.addEventListener("submit", async function (event) {
                 body: JSON.stringify({
                     email: email,
                     password: password,
-                    role: document.getElementById("role").value
+                    role: roleSelect.value
                 })
             }
         );

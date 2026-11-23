@@ -585,13 +585,26 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal(logoutAuth.status, 200);
   const logoutBody = await logoutAuth.json();
   assert.equal(logoutBody.message, 'Logged out successfully.');
+
+  // Revoked token must be rejected after logout
+  assert.equal((await request('/api/profile/me', 'GET', undefined, token)).status, 401);
   console.log('Logout API test passed.');
 
-  // Restart server and verify persistence
+  // Restart server and verify persistence with a fresh session
   await stop();
   base = await start();
 
-  const fetchedAfterRestart = await request('/api/profile/me', 'GET', undefined, token);
+  // Revocation survives server restart
+  assert.equal((await request('/api/profile/me', 'GET', undefined, token)).status, 401);
+
+  const relogin = await request('/api/auth/login', 'POST', {
+    email,
+    password: 'ExamplePass123!'
+  });
+  assert.equal(relogin.status, 200);
+  const freshToken = relogin.body.token;
+
+  const fetchedAfterRestart = await request('/api/profile/me', 'GET', undefined, freshToken);
   assert.equal(fetchedAfterRestart.status, 200);
   assert.equal(fetchedAfterRestart.body.profile.userId, id);
   assert.equal(fetchedAfterRestart.body.profile.headline, 'Developer');
@@ -601,26 +614,26 @@ test('database migrations, constraints and API persistence', async t => {
     VALUES ('Backend Developer Intern','CareerConnect Labs','Montreal','Engineering','Internship','Build backend APIs') RETURNING id`)).rows[0].id;
   const jobApp = { jobId: applicationJobId, jobTitle: 'Backend Developer Intern', company: 'CareerConnect Labs', coverLetter: 'Interested in this role.' };
   assert.equal((await request('/api/applications', 'POST', jobApp)).status, 401);
-  assert.equal((await request('/api/applications', 'POST', {}, token)).status, 400);
-  const createdApp = await request('/api/applications', 'POST', jobApp, token);
+  assert.equal((await request('/api/applications', 'POST', {}, freshToken)).status, 400);
+  const createdApp = await request('/api/applications', 'POST', jobApp, freshToken);
   assert.equal(createdApp.status, 201);
   assert.equal(createdApp.body.message, 'Application submitted successfully.');
   assert.equal(createdApp.body.application.status, 'Applied');
   const appId = createdApp.body.application.id;
-  assert.equal((await request('/api/applications', 'POST', jobApp, token)).status, 409);
+  assert.equal((await request('/api/applications', 'POST', jobApp, freshToken)).status, 409);
 
-  const myApps = await request('/api/applications/me', 'GET', undefined, token);
+  const myApps = await request('/api/applications/me', 'GET', undefined, freshToken);
   assert.equal(myApps.status, 200);
   assert.equal(myApps.body.applications.length, 1);
   assert.equal(myApps.body.applications[0].jobTitle, 'Backend Developer Intern');
 
-  assert.equal((await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'InvalidStatus' }, token)).status, 400);
-  const updatedApp = await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'Interview' }, token);
+  assert.equal((await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'InvalidStatus' }, freshToken)).status, 400);
+  const updatedApp = await request(`/api/applications/${appId}/status`, 'PATCH', { status: 'Interview' }, freshToken);
   assert.equal(updatedApp.status, 200);
   assert.equal(updatedApp.body.application.status, 'Interview');
 
-  assert.equal((await request('/api/applications/me?status=Interview', 'GET', undefined, token)).body.applications.length, 1);
-  assert.equal((await request('/api/applications/me?status=Offered', 'GET', undefined, token)).body.applications.length, 0);
+  assert.equal((await request('/api/applications/me?status=Interview', 'GET', undefined, freshToken)).body.applications.length, 1);
+  assert.equal((await request('/api/applications/me?status=Offered', 'GET', undefined, freshToken)).body.applications.length, 0);
 
   await assert.rejects(pool.query('UPDATE profiles SET summary=$1 WHERE user_id=$2', ['x'.repeat(2001), id]));
   await assert.rejects(pool.query('INSERT INTO resumes (user_id,original_name,storage_path,file_size,mime_type) VALUES ($1,$2,$3,$4,$5)', [id,'bad.exe',`bad-${id}`,10,'application/octet-stream']));
@@ -641,48 +654,3 @@ test('database migrations, constraints and API persistence', async t => {
   assert.equal((await pool.query('SELECT * FROM resumes WHERE user_id=$1', [id])).rowCount, 0);
   assert.equal((await pool.query('SELECT * FROM applications WHERE user_id=$1', [id])).rowCount, 0);
 });
-
-// Verify the logged-in user using a JWT token
-  function authenticateUser(req, res, next) {
-    const authorization = req.get('Authorization');
-
-    // 1. Check if Authorization header is missing or does not start with Bearer
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-      return res.status(401).json({
-        message: 'Authentication required.'
-      });
-    }
-
-    const token = authorization.slice(7);
-
-    // 2. Ensure JWT secret configuration exists
-    if (!process.env.JWT_SECRET) {
-      return res.status(503).json({
-        message: 'Authentication is not configured.'
-      });
-    }
-
-    try {
-      // 3. Verify token signature and expiration
-      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-        algorithms: ['HS256']
-      });
-
-      // 4. Validate payload user ID format
-      if (!Number.isSafeInteger(decoded.userId) || decoded.userId < 1) {
-        return res.status(401).json({
-          message: 'Invalid authentication token.'
-        });
-      }
-
-      // 5. Attach authenticated user context to the request object
-      req.user = { id: decoded.userId };
-      next();
-
-    } catch (error) {
-      // 6. Handle expired, modified, or malformed tokens
-      return res.status(401).json({
-        message: 'Invalid or expired authentication token.'
-      });
-    }
-  }

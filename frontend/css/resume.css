@@ -368,7 +368,8 @@ body {
 }
 
 .resume-download-button,
-.resume-replace-button {
+.resume-replace-button,
+.resume-delete-button {
     flex: 0 0 auto;
     padding: 8px 12px;
     color: #7a1f3d;
@@ -382,13 +383,20 @@ body {
 }
 
 .resume-download-button:hover:not(:disabled),
-.resume-replace-button:hover:not(:disabled) {
+.resume-replace-button:hover:not(:disabled),
+.resume-delete-button:hover:not(:disabled) {
     color: #4b0d1f;
     background: #f7e9ed;
 }
 
+.resume-delete-button {
+    color: #8f1d2c;
+    border-color: #c96f7b;
+}
+
 .resume-download-button:disabled,
-.resume-replace-button:disabled {
+.resume-replace-button:disabled,
+.resume-delete-button:disabled {
     cursor: wait;
     opacity: 0.6;
 }

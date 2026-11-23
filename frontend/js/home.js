@@ -49,7 +49,20 @@ function syncAuthenticationNavigation() {
 }
 
 document.querySelectorAll("[data-logout]").forEach(function (button) {
-    button.addEventListener("click", function () {
+    button.addEventListener("click", async function () {
+        const token = sessionStorage.getItem(TOKEN_KEY);
+        if (token) {
+            try {
+                await fetch("http://localhost:3000/api/auth/logout", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+            } catch (error) {
+                // Still clear the local session if the server cannot be reached.
+            }
+        }
         sessionStorage.removeItem(TOKEN_KEY);
         sessionStorage.removeItem(ROLE_KEY);
         window.location.reload();

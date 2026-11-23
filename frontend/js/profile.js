@@ -1,40 +1,58 @@
-const API_URL = "http://localhost:3000/api/profile";
-const INTERVIEW_API_URL = "http://localhost:3000/api/applications/me/interviews";
+const API_BASE = "http://localhost:3000/api";
+const PROFILE_API_URL = `${API_BASE}/profile`;
+const AUTH_ME_URL = `${API_BASE}/auth/me`;
+const LOGOUT_URL = `${API_BASE}/auth/logout`;
+const RESUMES_API_URL = `${API_BASE}/resumes`;
+const INTERVIEW_API_URL = `${API_BASE}/applications/me/interviews`;
+
+const TOKEN_KEY = "careerconnect_token";
+const ROLE_KEY = "careerconnect_role";
 
 const profileForm = document.getElementById("profile-form");
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
+const companyField = document.getElementById("company-field");
+const companyInput = document.getElementById("company");
+const headlineLabel = document.getElementById("headline-label");
 const headlineInput = document.getElementById("headline");
+const skillsField = document.getElementById("skills-field");
+const skillsInput = document.getElementById("skills");
 const phoneInput = document.getElementById("phone");
 const locationInput = document.getElementById("location");
-const skillsInput = document.getElementById("skills");
+const summaryInput = document.getElementById("summary");
+const summaryCount = document.getElementById("summary-count");
 const errorMessage = document.getElementById("error-message");
+const loginPrompt = document.getElementById("login-prompt");
 const profileButton = document.getElementById("profile-button");
 
+const pageTitle = document.getElementById("profile-page-title");
+const savedProfileSubtitle = document.getElementById("saved-profile-subtitle");
 const summaryInitials = document.getElementById("profile-initials");
 const summaryName = document.getElementById("summary-name");
+const summaryRole = document.getElementById("summary-role");
 const summaryHeadline = document.getElementById("summary-headline");
+const summaryCompany = document.getElementById("summary-company");
 const summaryLocation = document.getElementById("summary-location");
-const pictureInitials = document.getElementById("picture-initials");
-const pictureFileInput = document.getElementById("picture-file");
-const picturePreview = document.getElementById("picture-preview");
-const pictureStatus = document.getElementById("picture-status");
-const clearPictureButton = document.getElementById("clear-picture");
-const bioInput = document.getElementById("bio-preview");
-const bioCount = document.getElementById("bio-count");
-const educationEntries = document.getElementById("education-entries");
-const experienceEntries = document.getElementById("experience-entries");
-const professionalLinks = document.getElementById("professional-links");
+const summaryEmail = document.getElementById("summary-email");
 
-const TOKEN_KEY = "careerconnect_token";
+const recruiterNavLink = document.getElementById("recruiter-nav-link");
+const resumeNavLink = document.getElementById("resume-nav-link");
+const logoutButton = document.getElementById("logout-button");
+const resumesSection = document.getElementById("resumes-section");
+const interviewsSection = document.getElementById("interviews");
+const seekerFooterLink = document.getElementById("seeker-footer-link");
+const recruiterFooterLink = document.getElementById("recruiter-footer-link");
 
 let profileExists = false;
-let profilePictureUrl = null;
-let pictureSelectionId = 0;
-let entryId = 0;
+let currentRole = sessionStorage.getItem(ROLE_KEY) === "recruiter" ? "recruiter" : "job_seeker";
 
 function getToken() {
     return sessionStorage.getItem(TOKEN_KEY);
+}
+
+function clearSession() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(ROLE_KEY);
 }
 
 function handleUnauthorized(response) {
@@ -42,7 +60,9 @@ function handleUnauthorized(response) {
         return false;
     }
 
-    sessionStorage.removeItem(TOKEN_KEY);
+    clearSession();
+    loginPrompt.hidden = false;
+    logoutButton.hidden = true;
     return true;
 }
 
@@ -51,10 +71,57 @@ function showMessage(text, isSuccess = false) {
     errorMessage.classList.toggle("success", isSuccess);
 }
 
+function updateSummaryCount() {
+    summaryCount.textContent = String(summaryInput.value.length);
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024 * 1024) {
+        return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function applyRoleLayout(role, email) {
+    const isRecruiter = role === "recruiter";
+    currentRole = isRecruiter ? "recruiter" : "job_seeker";
+    sessionStorage.setItem(ROLE_KEY, currentRole);
+
+    pageTitle.textContent = isRecruiter ? "Recruiter Profile" : "My Profile";
+    savedProfileSubtitle.textContent = isRecruiter
+        ? "Share your role and company details for candidates and your team."
+        : "Keep your contact details, headline, and skills up to date.";
+
+    summaryRole.textContent = isRecruiter ? "Recruiter" : "Job Seeker";
+    summaryRole.hidden = false;
+    summaryEmail.textContent = email || "";
+
+    companyField.hidden = !isRecruiter;
+    companyInput.required = isRecruiter;
+    skillsField.hidden = isRecruiter;
+    skillsInput.required = !isRecruiter;
+
+    headlineLabel.textContent = isRecruiter ? "Role / Title" : "Headline";
+    headlineInput.placeholder = isRecruiter
+        ? "e.g. Technical Recruiter"
+        : "e.g. Junior Software Developer";
+
+    resumesSection.hidden = isRecruiter;
+    interviewsSection.hidden = isRecruiter;
+    recruiterNavLink.hidden = !isRecruiter;
+    resumeNavLink.hidden = isRecruiter;
+    recruiterFooterLink.hidden = !isRecruiter;
+    seekerFooterLink.hidden = isRecruiter;
+    logoutButton.hidden = false;
+
+    updateSummary();
+}
+
 function updateSummary() {
     const firstName = firstNameInput.value.trim();
     const lastName = lastNameInput.value.trim();
     const headline = headlineInput.value.trim();
+    const company = companyInput.value.trim();
     const location = locationInput.value.trim();
 
     const initials = (firstName.charAt(0) + lastName.charAt(0)) || "?";
@@ -62,216 +129,78 @@ function updateSummary() {
     summaryInitials.textContent = initials;
     summaryName.textContent = `${firstName} ${lastName}`.trim() || "Your Name";
     summaryHeadline.textContent =
-        headline || "Add a headline to stand out to recruiters";
+        headline ||
+        (currentRole === "recruiter"
+            ? "Add your recruiting title"
+            : "Add a headline to stand out to recruiters");
+    summaryCompany.textContent = company ? `Company: ${company}` : "";
+    summaryCompany.hidden = !company;
     summaryLocation.textContent = location;
-    pictureInitials.textContent = initials;
 }
 
 function fillForm(profile) {
     firstNameInput.value = profile.firstName || "";
     lastNameInput.value = profile.lastName || "";
+    companyInput.value = profile.company || "";
     headlineInput.value = profile.headline || "";
     phoneInput.value = profile.phone || "";
     locationInput.value = profile.location || "";
+    summaryInput.value = profile.summary || "";
     skillsInput.value = Array.isArray(profile.skills) ? profile.skills.join(", ") : "";
+    updateSummaryCount();
     updateSummary();
 }
 
-function validateProfileUrl(value, allowedDomain) {
-    let url;
+async function loadAccount() {
+    const token = getToken();
+    if (!token) {
+        showMessage("Please log in to view your profile.");
+        loginPrompt.hidden = false;
+        return null;
+    }
 
     try {
-        url = new URL(value.trim());
+        const response = await fetch(AUTH_ME_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                showMessage("Your session has expired. Please log in again.");
+                return null;
+            }
+            const data = await response.json();
+            showMessage(data.message || "Unable to verify your account.");
+            return null;
+        }
+
+        const data = await response.json();
+        applyRoleLayout(data.user.role, data.user.email);
+        return data.user;
     } catch (error) {
+        showMessage("Unable to connect to the server. Please try again.");
         return null;
     }
-
-    const hostname = url.hostname.toLowerCase();
-    const isAllowedHost =
-        hostname === allowedDomain || hostname.endsWith(`.${allowedDomain}`);
-
-    if (
-        url.protocol !== "https:" ||
-        !isAllowedHost ||
-        url.username ||
-        url.password ||
-        (url.port && url.port !== "443")
-    ) {
-        return null;
-    }
-
-    return url;
-}
-
-function updateProfessionalLink(inputId, statusId, label, domain) {
-    const input = document.getElementById(inputId);
-    const status = document.getElementById(statusId);
-    const value = input.value.trim();
-    const existing = professionalLinks.querySelector(`[data-link="${label}"]`);
-    if (existing) {
-        existing.remove();
-    }
-
-    if (!value) {
-        status.textContent = "";
-        return;
-    }
-
-    const url = validateProfileUrl(value, domain);
-    if (!url) {
-        status.textContent = `Enter a valid HTTPS ${label} profile URL.`;
-        return;
-    }
-
-    status.textContent = "";
-    const link = document.createElement("a");
-    link.className = "preview-link";
-    link.dataset.link = label;
-    link.href = url.href;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = `Preview ${label} profile`;
-    professionalLinks.append(link);
-}
-
-function createField(labelText, type, options = {}) {
-    const wrapper = document.createElement("div");
-    const inputId = `preview-field-${++entryId}`;
-    const label = document.createElement("label");
-    const input = document.createElement(type === "textarea" ? "textarea" : "input");
-
-    label.htmlFor = inputId;
-    label.textContent = labelText;
-    input.id = inputId;
-    if (type !== "textarea") {
-        input.type = type;
-    }
-    if (options.maxLength) {
-        input.maxLength = options.maxLength;
-    }
-    if (options.min) {
-        input.min = options.min;
-    }
-    if (options.max) {
-        input.max = options.max;
-    }
-    if (options.placeholder) {
-        input.placeholder = options.placeholder;
-    }
-
-    wrapper.append(label, input);
-    return { wrapper, input };
-}
-
-function createEntryHeader(entry, label) {
-    const header = document.createElement("div");
-    header.className = "entry-card-header";
-
-    const removeButton = document.createElement("button");
-    removeButton.className = "remove-entry";
-    removeButton.type = "button";
-    removeButton.textContent = `Remove ${label}`;
-    removeButton.addEventListener("click", function () {
-        entry.remove();
-    });
-
-    header.append(removeButton);
-    return header;
-}
-
-function createEducationEntry() {
-    const entry = document.createElement("div");
-    entry.className = "entry-card education-entry";
-    entry.append(createEntryHeader(entry, "education entry"));
-
-    const firstRow = document.createElement("div");
-    firstRow.className = "form-row";
-    firstRow.append(
-        createField("Institution", "text", { maxLength: 200, placeholder: "School or university" }).wrapper,
-        createField("Degree", "text", { maxLength: 150, placeholder: "e.g. Bachelor's degree" }).wrapper
-    );
-
-    const secondRow = document.createElement("div");
-    secondRow.className = "form-row";
-    secondRow.append(
-        createField("Field of study", "text", { maxLength: 150, placeholder: "e.g. Computer Science" }).wrapper,
-        createField("Graduation year", "number", {
-            min: 1900,
-            max: new Date().getFullYear() + 20,
-            placeholder: "e.g. 2027"
-        }).wrapper
-    );
-
-    entry.append(firstRow, secondRow);
-    educationEntries.append(entry);
-}
-
-function createExperienceEntry() {
-    const entry = document.createElement("div");
-    entry.className = "entry-card experience-entry";
-    entry.append(createEntryHeader(entry, "experience entry"));
-
-    const firstRow = document.createElement("div");
-    firstRow.className = "form-row";
-    firstRow.append(
-        createField("Employer", "text", { maxLength: 200, placeholder: "Company or organization" }).wrapper,
-        createField("Job title", "text", { maxLength: 200, placeholder: "Your role" }).wrapper
-    );
-
-    const dateRow = document.createElement("div");
-    dateRow.className = "form-row";
-    const startDate = createField("Start date", "date");
-    const endDate = createField("End date", "date");
-    dateRow.append(startDate.wrapper, endDate.wrapper);
-
-    const currentLabel = document.createElement("label");
-    currentLabel.className = "current-position";
-    const currentCheckbox = document.createElement("input");
-    currentCheckbox.type = "checkbox";
-    const currentText = document.createElement("span");
-    currentText.textContent = "I currently work here";
-    currentLabel.append(currentCheckbox, currentText);
-    currentCheckbox.addEventListener("change", function () {
-        endDate.input.disabled = currentCheckbox.checked;
-    });
-
-    const description = createField("Description", "textarea", {
-        maxLength: 2000,
-        placeholder: "Describe your responsibilities and contributions."
-    });
-
-    entry.append(firstRow, dateRow, currentLabel, description.wrapper);
-    experienceEntries.append(entry);
-}
-
-function clearPicturePreview() {
-    pictureSelectionId += 1;
-    if (profilePictureUrl) {
-        URL.revokeObjectURL(profilePictureUrl);
-        profilePictureUrl = null;
-    }
-
-    pictureFileInput.value = "";
-    picturePreview.removeAttribute("src");
-    picturePreview.hidden = true;
-    clearPictureButton.disabled = true;
-    pictureStatus.textContent = "";
 }
 
 async function loadProfile() {
     const token = getToken();
     if (!token) {
-        showMessage("Please log in to view your profile.");
         return;
     }
 
     try {
-        const response = await fetch(`${API_URL}/me`, {
+        const response = await fetch(`${PROFILE_API_URL}/me`, {
             headers: { Authorization: `Bearer ${token}` }
         });
 
         if (response.status === 404) {
-            showMessage("Complete your profile to start applying to jobs.", true);
+            showMessage(
+                currentRole === "recruiter"
+                    ? "Complete your recruiter profile so your company details are saved."
+                    : "Complete your profile to start applying to jobs.",
+                true
+            );
             return;
         }
 
@@ -290,6 +219,114 @@ async function loadProfile() {
         fillForm(data.profile);
     } catch (error) {
         showMessage("Unable to connect to the server. Please try again.");
+    }
+}
+
+async function downloadProfileResume(resume, button) {
+    const token = getToken();
+    if (!token) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Downloading...";
+
+    try {
+        const response = await fetch(`${RESUMES_API_URL}/${encodeURIComponent(resume.id)}/download`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                showMessage("Your session has expired. Please log in again.");
+                return;
+            }
+            const data = await response.json();
+            showMessage(data.message || "Unable to download resume.");
+            return;
+        }
+
+        const fileUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = resume.original_name;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        window.setTimeout(function () {
+            URL.revokeObjectURL(fileUrl);
+        }, 1000);
+    } catch (error) {
+        showMessage("Unable to download resume. Please try again.");
+    } finally {
+        button.textContent = "Download";
+        button.disabled = false;
+    }
+}
+
+function renderProfileResume(resume) {
+    const item = document.createElement("li");
+    item.className = "interview-item profile-resume-item";
+
+    const details = document.createElement("div");
+    const name = document.createElement("h4");
+    name.textContent = resume.original_name;
+
+    const meta = document.createElement("p");
+    let metaText = formatFileSize(resume.file_size);
+    if (resume.uploaded_at) {
+        const uploadedAt = new Date(resume.uploaded_at);
+        if (!Number.isNaN(uploadedAt.getTime())) {
+            metaText += ` · Uploaded ${uploadedAt.toLocaleDateString()}`;
+        }
+    }
+    meta.textContent = metaText;
+    details.append(name, meta);
+
+    const downloadBtn = document.createElement("button");
+    downloadBtn.type = "button";
+    downloadBtn.className = "secondary-button";
+    downloadBtn.textContent = "Download";
+    downloadBtn.addEventListener("click", function () {
+        downloadProfileResume(resume, downloadBtn);
+    });
+
+    item.append(details, downloadBtn);
+    return item;
+}
+
+async function loadProfileResumes() {
+    const status = document.getElementById("profile-resumes-status");
+    const list = document.getElementById("profile-resume-list");
+    const token = getToken();
+
+    if (!token) {
+        status.textContent = "Please log in to view your resumes.";
+        return;
+    }
+
+    try {
+        const response = await fetch(RESUMES_API_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (handleUnauthorized(response)) {
+                status.textContent = "Your session has expired. Please log in again.";
+                return;
+            }
+            status.textContent = data.message || "Unable to load your resumes.";
+            return;
+        }
+
+        const resumes = Array.isArray(data.resumes) ? data.resumes : [];
+        list.replaceChildren(...resumes.map(renderProfileResume));
+        status.textContent = resumes.length
+            ? ""
+            : "You have not uploaded a resume yet.";
+    } catch (error) {
+        status.textContent = "Unable to connect to the server. Please try again.";
     }
 }
 
@@ -378,29 +415,64 @@ async function loadInterviewInvitations() {
     }
 }
 
-[firstNameInput, lastNameInput, headlineInput, locationInput].forEach(function (input) {
+[firstNameInput, lastNameInput, companyInput, headlineInput, locationInput].forEach(function (input) {
     input.addEventListener("input", updateSummary);
+});
+
+summaryInput.addEventListener("input", updateSummaryCount);
+
+logoutButton.addEventListener("click", async function () {
+    const token = getToken();
+    if (token) {
+        try {
+            await fetch(LOGOUT_URL, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        } catch (error) {
+            // Still clear local session if request fails.
+        }
+    }
+    clearSession();
+    window.location.href = "login.html";
 });
 
 profileForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
+    const isRecruiter = currentRole === "recruiter";
     const profile = {
         firstName: firstNameInput.value.trim(),
         lastName: lastNameInput.value.trim(),
+        company: isRecruiter ? companyInput.value.trim() : "",
         phone: phoneInput.value.trim(),
         location: locationInput.value.trim(),
         headline: headlineInput.value.trim(),
-        skills: skillsInput.value.split(",").map(function (skill) { return skill.trim(); }).filter(Boolean)
+        summary: summaryInput.value.trim(),
+        skills: isRecruiter
+            ? []
+            : skillsInput.value.split(",").map(function (skill) { return skill.trim(); }).filter(Boolean)
     };
 
     showMessage("");
 
-    if (Object.values(profile).some(function (value) { return value === ""; })) {
-        showMessage("Please complete all fields.");
+    if (
+        !profile.firstName ||
+        !profile.lastName ||
+        !profile.phone ||
+        !profile.location ||
+        !profile.headline
+    ) {
+        showMessage("Please complete all required fields.");
         return;
     }
-    if (profile.skills.length === 0) {
+
+    if (isRecruiter && !profile.company) {
+        showMessage("Please enter your company or organization.");
+        return;
+    }
+
+    if (!isRecruiter && profile.skills.length === 0) {
         showMessage("Please add at least one skill.");
         return;
     }
@@ -408,6 +480,7 @@ profileForm.addEventListener("submit", async function (event) {
     const token = getToken();
     if (!token) {
         showMessage("Please log in to save your profile.");
+        loginPrompt.hidden = false;
         return;
     }
 
@@ -415,7 +488,7 @@ profileForm.addEventListener("submit", async function (event) {
     profileButton.disabled = true;
 
     try {
-        const response = await fetch(profileExists ? `${API_URL}/me` : API_URL, {
+        const response = await fetch(profileExists ? `${PROFILE_API_URL}/me` : PROFILE_API_URL, {
             method: profileExists ? "PUT" : "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -446,91 +519,17 @@ profileForm.addEventListener("submit", async function (event) {
     }
 });
 
-pictureFileInput.addEventListener("change", function () {
-    const file = pictureFileInput.files && pictureFileInput.files[0];
-    pictureStatus.textContent = "";
-    if (!file) {
+async function initProfilePage() {
+    const user = await loadAccount();
+    if (!user) {
         return;
     }
 
-    const extension = file.name.match(/\.(jpe?g|png)$/i);
-    const expectedMime = extension && extension[1].toLowerCase() === "png"
-        ? "image/png"
-        : "image/jpeg";
-    if (!extension || (file.type && file.type !== expectedMime)) {
-        clearPicturePreview();
-        pictureStatus.textContent = "Choose a JPG or PNG image.";
-        return;
+    await loadProfile();
+    if (user.role !== "recruiter") {
+        loadProfileResumes();
+        loadInterviewInvitations();
     }
+}
 
-    if (!file.size || file.size > 5 * 1024 * 1024) {
-        clearPicturePreview();
-        pictureStatus.textContent = "Choose an image larger than 0 bytes and no larger than 5 MB.";
-        return;
-    }
-
-    if (profilePictureUrl) {
-        URL.revokeObjectURL(profilePictureUrl);
-    }
-
-    const selectionId = ++pictureSelectionId;
-    profilePictureUrl = URL.createObjectURL(file);
-    picturePreview.hidden = false;
-    picturePreview.src = profilePictureUrl;
-    clearPictureButton.disabled = false;
-
-    picturePreview.onload = function () {
-        if (selectionId !== pictureSelectionId) {
-            return;
-        }
-
-        const pixelCount = picturePreview.naturalWidth * picturePreview.naturalHeight;
-        if (
-            !picturePreview.naturalWidth ||
-            picturePreview.naturalWidth > 8000 ||
-            picturePreview.naturalHeight > 8000 ||
-            pixelCount > 32000000
-        ) {
-            clearPicturePreview();
-            pictureStatus.textContent = "This image's dimensions are too large to preview.";
-        }
-    };
-
-    picturePreview.onerror = function () {
-        if (selectionId !== pictureSelectionId) {
-            return;
-        }
-
-        clearPicturePreview();
-        pictureStatus.textContent = "This file could not be displayed as an image.";
-    };
-});
-
-clearPictureButton.addEventListener("click", clearPicturePreview);
-
-bioInput.addEventListener("input", function () {
-    bioCount.textContent = String(bioInput.value.length);
-});
-
-document.getElementById("linkedin-url").addEventListener("input", function () {
-    updateProfessionalLink("linkedin-url", "linkedin-status", "LinkedIn", "linkedin.com");
-});
-
-document.getElementById("github-url").addEventListener("input", function () {
-    updateProfessionalLink("github-url", "github-status", "GitHub", "github.com");
-});
-
-document.getElementById("add-education").addEventListener("click", createEducationEntry);
-document.getElementById("add-experience").addEventListener("click", createExperienceEntry);
-
-createEducationEntry();
-createExperienceEntry();
-
-window.addEventListener("beforeunload", function () {
-    if (profilePictureUrl) {
-        URL.revokeObjectURL(profilePictureUrl);
-    }
-});
-
-loadProfile();
-loadInterviewInvitations();
+initProfilePage();
