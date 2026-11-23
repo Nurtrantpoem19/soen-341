@@ -20,7 +20,7 @@
 | `frontend/profile.html` | Three duplicated `Skills` inputs with identical `id="skills"` attributes | Bug / Invalid HTML | Removed the two duplicate input blocks and kept one valid `#skills` field. |
 | `test/database.test.js` | Unused duplicate `authenticateUser` function pasted at the bottom of the file | Dead code | Removed unused function. |
 
-### 2. Issues flagged by initial `npm run lint` scan
+### 2. Issues flagged by initial `npm run lint` scan (commit `ac998be`)
 
 Initial ESLint run reported **10 real errors** (plus false positives on object rest-destructuring and `t.after` variable declarations, which were resolved in `eslint.config.js` via `ignoreRestSiblings` and `ignoreReadBeforeAssign`):
 
@@ -33,8 +33,6 @@ Initial ESLint run reported **10 real errors** (plus false positives on object r
 | `services/notifications.js:56` | `preserve-caught-error` | Maintainability | Re-throwing `new TypeError(...)` inside `catch (error)` dropped the original URL parsing error. | Passed `{ cause: error }` when throwing. |
 | `server.js:173` | `no-unused-vars` | Code smell | Express error middleware had unused `next` parameter. | Renamed to `_next` so Express still recognizes the 4-arg error handler while satisfying ESLint. |
 | `test/database.test.js:134,242` | `no-unused-vars` | Dead code | Unused `uploadedResumeId`, `path`, and `resumeDirectory` variables. | Removed unused declarations. |
-
-*(Update with commit hash once the ESLint & fixes commit is pushed.)*
 
 ---
 
