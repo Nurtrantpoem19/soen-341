@@ -1,6 +1,7 @@
 const multer = require('multer');
 const express = require('express');
 const cors = require('cors');
+const path = require('node:path');
 const { createPool } = require('./db');
 const { createAuthenticateUser } = require('./middleware/auth');
 const { registerAuthRoutes } = require('./routes/auth');
@@ -46,6 +47,9 @@ function createApp(pool, { resumeFeedback = createResumeFeedbackService() } = {}
     }
   }));
   app.use(express.json({ limit: '32kb' }));
+  // Only public assets are served; never expose the repository or uploads directory.
+  app.use('/frontend', express.static(path.join(__dirname, 'frontend')));
+  app.get(['/', '/index.html'], (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
   app.get('/api/health', async (req, res) => {
     try {
