@@ -77,6 +77,30 @@
             </form>
         </section>
 
+        <section class="resume-card" aria-labelledby="matching-heading">
+            <div class="section-heading"><span class="section-icon" aria-hidden="true">04</span><div>
+                <h2 id="matching-heading">Job compatibility</h2>
+                <p>Compare a saved resume with a job posting and see matched and missing skills.</p>
+            </div></div>
+            <form id="matching-form" class="feedback-form" novalidate>
+                <div class="feedback-fields">
+                    <div><label for="matching-resume">Saved resume <span class="optional">(optional)</span></label><select id="matching-resume"><option value="">Choose a saved resume</option></select></div>
+                    <div><label for="matching-url">Job posting URL <span class="optional">(optional)</span></label><input id="matching-url" type="url" placeholder="https://example.com/job" autocomplete="url"></div>
+                </div>
+                <label for="matching-resume-text">Or paste profile/resume text <span class="optional">(optional)</span></label>
+                <textarea id="matching-resume-text" rows="5" maxlength="100000" placeholder="Paste your profile summary, skills, experience, or resume text."></textarea>
+                <label for="matching-description">Or paste the job description</label>
+                <textarea id="matching-description" rows="7" maxlength="20000" placeholder="Paste the complete job posting here (at least 50 words)."></textarea>
+                <p class="feedback-disclosure">Resume content and the posting are sent to Google Gemini to calculate the match. Remove personal details you do not want to share.</p>
+                <p id="matching-status" class="status-message" role="status" aria-live="polite"></p>
+                <button class="primary-button" id="matching-button" type="submit">Analyze compatibility</button>
+            </form>
+            <div id="matching-result" class="feedback-result" hidden>
+                <div class="score-badge" id="compatibility-badge"><span class="score-value" id="compatibility-score"></span><span class="score-label">Compatibility</span></div>
+                <div id="matching-categories" class="feedback-sections"></div>
+            </div>
+        </section>
+
         <section class="resume-card current-resume" aria-labelledby="current-resume-heading">
             <div class="section-heading">
                 <span class="section-icon" aria-hidden="true">02</span>
@@ -153,5 +177,6 @@
 
     <script src="js/resume.js"></script>
     <script src="js/resume-feedback.js"></script>
+    <script src="js/resume-matching.js"></script>
 </body>
 </html>

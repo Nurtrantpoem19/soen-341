@@ -203,16 +203,21 @@ function createResumeFeedbackService({
 } = {}) {
   const models = fallbackModel && fallbackModel !== model ? [model, fallbackModel] : [model];
   return {
-    async analyze({ filePath, mimeType, job = null, profile = null }) {
+    async analyze({ filePath, mimeType, resumeText = null, job = null, profile = null }) {
       if (!client) throw new FeedbackError('not_configured', 'GEMINI_API_KEY is not set.');
-      const data = await fs.readFile(filePath);
       let resume;
-      if (mimeType === PDF) resume = { kind: 'pdf', data };
-      else if (mimeType === DOCX) {
-        const text = await extractDocxText(data);
-        if (!text) throw new FeedbackError('unreadable', 'DOCX contains no text.');
-        resume = { kind: 'text', text: text.slice(0, MAX_RESUME_TEXT) };
-      } else throw new FeedbackError('unreadable', `Unsupported type ${mimeType}.`);
+      if (typeof resumeText === 'string') {
+        if (!resumeText.trim()) throw new FeedbackError('unreadable', 'Resume text is empty.');
+        resume = { kind: 'text', text: resumeText.slice(0, MAX_RESUME_TEXT) };
+      } else {
+        const data = await fs.readFile(filePath);
+        if (mimeType === PDF) resume = { kind: 'pdf', data };
+        else if (mimeType === DOCX) {
+          const text = await extractDocxText(data);
+          if (!text) throw new FeedbackError('unreadable', 'DOCX contains no text.');
+          resume = { kind: 'text', text: text.slice(0, MAX_RESUME_TEXT) };
+        } else throw new FeedbackError('unreadable', `Unsupported type ${mimeType}.`);
+      }
       for (const [index, name] of models.entries()) {
         let response;
         try {

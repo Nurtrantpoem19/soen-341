@@ -47,6 +47,31 @@
     outline-offset: 2px;
 }
 
+.feedback-form input[type="url"],
+.feedback-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 10px 12px;
+    color: #35101c;
+    background: #fff;
+    border: 1px solid #c9b5bb;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 15px;
+}
+
+.feedback-form textarea {
+    margin: 6px 0 14px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.feedback-form input:focus-visible,
+.feedback-form textarea:focus-visible {
+    outline: 3px solid #35101c;
+    outline-offset: 2px;
+}
+
 .feedback-disclosure {
     margin: 0;
     color: #73656a;
