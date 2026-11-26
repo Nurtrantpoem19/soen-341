@@ -37,3 +37,14 @@ jobs:
       - run: npm test
         env:
           TEST_DATABASE_URL: postgres://careerconnect:test_only@localhost:5432/careerconnect_test
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:frontend
