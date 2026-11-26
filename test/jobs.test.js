@@ -142,9 +142,9 @@ test('job search, filtering, sorting and job details', async t => {
   assert.equal((await get('/api/jobs?q=' + encodeURIComponent('100%'))).body.jobs.some(job => job.id === analystId), true);
   assert.equal((await get('/api/jobs?q=' + encodeURIComponent(`${marker}%_`))).body.jobs.length, 0);
 
-  // Location, case-insensitive category, and type filters, alone and combined with a keyword.
+  // Location, category, and type filters, alone and combined with a keyword.
   assert.deepEqual(ids((await get(`/api/jobs?q=${marker}&location=toronto`)).body), [analystId]);
-  assert.deepEqual(ids((await get(`/api/jobs?category=${encodeURIComponent(`engineering ${marker}`)}`)).body), [internId]);
+  assert.deepEqual(ids((await get(`/api/jobs?category=${encodeURIComponent(`Engineering ${marker}`)}`)).body), [internId]);
   assert.deepEqual(ids((await get(`/api/jobs?q=${marker}&type=Full-time`)).body), [analystId]);
   assert.equal((await get(`/api/jobs?q=${marker}&location=Vancouver`)).body.jobs.length, 0);
 

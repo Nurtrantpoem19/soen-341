@@ -47,7 +47,7 @@ function registerJobRoutes(app, pool) {
     const values = readFilters(req.query);
     if (!values) {
       return res.status(400).json({
-        message: 'Search filters must be text of at most 100 characters, with valid type and sort options.'
+        message: 'Search filters are too long or contain an invalid type or sort option.'
       });
     }
 
@@ -67,7 +67,7 @@ function registerJobRoutes(app, pool) {
     }
     if (values.category) {
       params.push(values.category);
-      conditions.push(`lower(category) = lower($${params.length})`);
+      conditions.push(`category = $${params.length}`);
     }
     if (values.type) {
       params.push(values.type);
