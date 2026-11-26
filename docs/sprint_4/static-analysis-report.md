@@ -34,10 +34,18 @@ Initial ESLint run reported **10 real errors** (plus false positives on object r
 | `server.js:173` | `no-unused-vars` | Code smell | Express error middleware had unused `next` parameter. | Renamed to `_next` so Express still recognizes the 4-arg error handler while satisfying ESLint. |
 | `test/database.test.js:134,242` | `no-unused-vars` | Dead code | Unused `uploadedResumeId`, `path`, and `resumeDirectory` variables. | Removed unused declarations. |
 
+### 3. Maintenance fixes during Job Search & Listings cleanup (branch `feature/sprint4-job-search`)
+
+| File | Issue | Category | Fix |
+| --- | --- | --- | --- |
+| `frontend/job.html` | Duplicate `Resume and skills match` card with repeated element IDs (`#match-form`, `#match-resume`, etc.) | Bug / Invalid HTML | Removed duplicate card block so all IDs are unique. |
+| `frontend/css/jobs.css` | Duplicate `.match-*` CSS block (lines 423–435) | Code smell / Duplication | Removed duplicate block. |
+| `frontend/js/jobs.js` | Used `innerHTML` to render "View details" link arrow | Maintainability / Security hygiene | Replaced with `document.createTextNode` and `document.createElement`. |
+
 ---
 
 ## Verification
 
 After applying all fixes:
 - `npm run lint` -> **0 errors, 0 warnings**
-- `npm test` -> **57/57 tests passing**
+- `npm test` -> **60/60 tests passing**
