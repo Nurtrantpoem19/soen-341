@@ -14,6 +14,7 @@ const { registerRecruiterRoutes } = require('./routes/recruiters');
 const { registerResumeFeedbackRoutes } = require('./routes/resume-feedback');
 const { createResumeFeedbackService } = require('./services/resume-feedback');
 const { registerJobMatchRoutes } = require('./routes/job-matches');
+const { registerResumeMatchingRoutes } = require('./routes/resume-matching');
 
 const APPLICATION_STATUSES = ['Applied', 'Under Review', 'Interview', 'Offered', 'Rejected'];
 const applicationColumns = 'id, user_id AS "userId", job_id AS "jobId", job_title AS "jobTitle", company, cover_letter AS "coverLetter", status, applied_at AS "appliedAt", updated_at AS "updatedAt"';
@@ -65,6 +66,7 @@ function createApp(pool, { resumeFeedback = createResumeFeedbackService() } = {}
   registerRecruiterRoutes(app, pool, authenticateUser);
   registerResumeFeedbackRoutes(app, pool, authenticateUser, resumeFeedback);
   registerJobMatchRoutes(app, pool, authenticateUser, resumeFeedback);
+  registerResumeMatchingRoutes(app, pool, authenticateUser, resumeFeedback);
 
   // --- SPRINT 2: JOB APPLICATION SUBMISSION AND TRACKING ---
 
